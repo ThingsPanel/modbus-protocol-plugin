@@ -73,22 +73,22 @@ func GetGatewayConfig(AccessToken string) (server_map.Gateway, error) {
 	// 		},
 	// 	},
 	// }
-	var gateway server_map.Gateway
+	var gateway server_map.GatewayData
 	var req = make(map[string]interface{})
 	req["AccessToken"] = AccessToken
 	rsp, err := api.ApiGetGatewayConfig(req)
 	if err != nil {
-		return gateway, err
+		return gateway.Data, err
 	}
 	json_error := json.Unmarshal(rsp, &gateway)
 	if json_error != nil {
-		return gateway, json_error
+		return gateway.Data, json_error
 	}
-	server_map.GatewayConfigMap[gateway.GatewayId] = gateway
-	for _, subDeviceConfig := range gateway.SubDevice {
+	server_map.GatewayConfigMap[gateway.Data.GatewayId] = gateway.Data
+	for _, subDeviceConfig := range gateway.Data.SubDevice {
 		server_map.SubDeviceConfigMap[subDeviceConfig.DeviceId] = subDeviceConfig
 	}
-	return gateway, nil
+	return gateway.Data, nil
 }
 
 // 客户端链接成功后启动携程

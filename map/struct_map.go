@@ -1,5 +1,10 @@
 package server_map
 
+type GatewayData struct {
+	Code    int     `json:"code"`
+	Message string  `json:"message"`
+	Data    Gateway `json:"data"`
+}
 type Gateway struct {
 	GatewayId    string   //网关设备id
 	ProtocolType string   //modbus协议类型：RTU TCP
