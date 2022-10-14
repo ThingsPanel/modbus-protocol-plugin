@@ -28,7 +28,7 @@ func linkProcess(conn net.Conn) {
 	if string(buf[:n]) != "" {
 		gatewayConfig, err := tp.GetGatewayConfig(string(buf[:n])) // 校验密钥并获取网关设备配置
 		if err != nil {
-			log.Println("密钥验证失败...", string(buf[:n]))
+			log.Println("密钥验证失败...", string(buf[:n]), err.Error())
 			return
 		}
 		server_map.TcpClientMap[gatewayConfig.GatewayId] = conn                   // 在集合中添加tcp连接
@@ -37,7 +37,7 @@ func linkProcess(conn net.Conn) {
 		var s sync.Mutex
 		server_map.TcpClientSyncMap[gatewayConfig.GatewayId] = &s
 		//go process(conn, gatewayConfig.GatewayId)
-		tp.ProcessReq(string(buf[:n])) // 启动一个goroutine来处理客户端的连接请求
+		tp.ProcessReq(gatewayConfig.GatewayId) // 启动一个goroutine来处理客户端的连接请求
 	}
 }
 

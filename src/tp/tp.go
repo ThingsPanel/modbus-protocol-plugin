@@ -2,6 +2,7 @@ package tp
 
 import (
 	"encoding/json"
+	"log"
 	server_map "tp-modbus/map"
 	"tp-modbus/src/api"
 	"tp-modbus/src/modbus_rtu"
@@ -73,22 +74,23 @@ func GetGatewayConfig(AccessToken string) (server_map.Gateway, error) {
 	// 		},
 	// 	},
 	// }
-	var gateway server_map.GatewayData
+	var gateway_data server_map.GatewayData
 	var req = make(map[string]interface{})
 	req["AccessToken"] = AccessToken
 	rsp, err := api.ApiGetGatewayConfig(req)
 	if err != nil {
-		return gateway.Data, err
+		return gateway_data.Data, err
 	}
-	json_error := json.Unmarshal(rsp, &gateway)
+	log.Println(string(rsp))
+	json_error := json.Unmarshal(rsp, &gateway_data)
 	if json_error != nil {
-		return gateway.Data, json_error
+		return gateway_data.Data, json_error
 	}
-	server_map.GatewayConfigMap[gateway.Data.GatewayId] = gateway.Data
-	for _, subDeviceConfig := range gateway.Data.SubDevice {
+	server_map.GatewayConfigMap[gateway_data.Data.GatewayId] = gateway_data.Data
+	for _, subDeviceConfig := range gateway_data.Data.SubDevice {
 		server_map.SubDeviceConfigMap[subDeviceConfig.DeviceId] = subDeviceConfig
 	}
-	return gateway.Data, nil
+	return gateway_data.Data, nil
 }
 
 // 客户端链接成功后启动携程
