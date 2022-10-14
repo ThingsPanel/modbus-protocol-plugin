@@ -28,6 +28,9 @@ func InitTCPGo(gatewayId string, deviceId string) {
 			log.Println("设备通道收到信号，设备携程关闭，（设备id:", deviceId, ")")
 			break
 		}
+		if _, ok := server_map.SubDeviceConfigMap[deviceId]; !ok { //设备被删除
+			break
+		}
 		i++
 		var frame mbserver.TCPFrame
 		frame.TransactionIdentifier = i                                       // 事务处理标识,一般每次通信之后就要加1以区别不同的通信数据报文

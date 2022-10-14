@@ -28,6 +28,9 @@ func InitRTUGo(gatewayId string, deviceId string) {
 			log.Println("设备通道收到信号，设备携程关闭，（设备id:", deviceId, ")")
 			break
 		}
+		if _, ok := server_map.SubDeviceConfigMap[deviceId]; !ok { //设备被删除
+			break
+		}
 		i++
 		var frame mbserver.RTUFrame
 		frame.Address = server_map.SubDeviceConfigMap[deviceId].DeviceAddress // 设备地址

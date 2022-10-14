@@ -43,7 +43,7 @@ func listenMQTT() {
 	log.Println("mqtt客户端订阅处理的并发池大小为", viper.GetInt("mqtt.subscribe_pool"))
 	opts.SetDefaultPublishHandler(func(c mqtt.Client, m mqtt.Message) {
 		_ = p.Submit(func() {
-			MsgProc(m)
+			MsgProc(c, m)
 		})
 	})
 	mqtt_client = mqtt.NewClient(opts)
@@ -60,7 +60,8 @@ func listenMQTT() {
 }
 
 // 接收订阅的消息进行处理
-func MsgProc(m mqtt.Message) {
+func MsgProc(c mqtt.Client, m mqtt.Message) {
+	m.Topic()
 	log.Println("收到订阅消息", string(m.Payload()))
 }
 
