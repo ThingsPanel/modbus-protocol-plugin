@@ -24,6 +24,7 @@
             ],
             "placeholder": "请选择功能码",
             "validate": {
+                "type": "number",
                 "required": true,
                 "message": "功能码不能为空"
             }
@@ -104,6 +105,7 @@
             ],
             "placeholder": "请选择数据类型",
             "validate": {
+                "type": "string",
                 "required": true,
                 "message": "数据类型不能为空"
             }
