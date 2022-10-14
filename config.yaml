@@ -1,5 +1,5 @@
 server:
-  address: 127.0.0.1:502 #服务地址
+  address: 0.0.0.0:502 #服务地址
 
 mqtt:
   broker: 127.0.0.1:1883 #mqtt服务端地址
@@ -10,7 +10,7 @@ mqtt:
   subscribe_pool: 100 #客户端订阅处理并发池
 
 http_server:
-  address: 127.0.0.1:503 #http服务地址
+  address: 0.0.0.0:503 #http服务地址
 
 thingspanel:
   address: 127.0.0.1:9999 #thingspanel服务地址
