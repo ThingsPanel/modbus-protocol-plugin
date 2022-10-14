@@ -80,7 +80,7 @@
         {
             "type": "select",
             "dataKey": "DataType",
-            "label": "功数据类型",
+            "label": "数据类型",
             "options": [
                 {
                     "label": "int16",

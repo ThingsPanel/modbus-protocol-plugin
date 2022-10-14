@@ -1,8 +1,16 @@
 package api
 
-import "github.com/spf13/viper"
+import (
+	"os"
+
+	"github.com/spf13/viper"
+)
 
 func ApiGetGatewayConfig(req map[string]interface{}) ([]byte, error) {
-	response, err := PostJson("http://"+viper.GetString("thingspanel.address")+"/api/gateway/config", req)
+	TpHost := os.Getenv("TP_HOST")
+	if TpHost == "" {
+		TpHost = viper.GetString("thingspanel.address")
+	}
+	response, err := PostJson("http://"+TpHost+"/api/gateway/config", req)
 	return response, err
 }

@@ -2,11 +2,11 @@ server:
   address: 127.0.0.1:502 #服务地址
 
 mqtt:
-  broker: dev.thingspanel.cn:1883 #mqtt服务端地址
+  broker: 127.0.0.1:1883 #mqtt服务端地址
   username: root
   password: root
   topic_to_publish: device/attributes #发送主题
-  topic_to_subscribe: modbus/gateway 
+  topic_to_subscribe: device/attributes/#
   subscribe_pool: 100 #客户端订阅处理并发池
 
 http_server:
