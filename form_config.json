@@ -101,6 +101,10 @@
                 {
                     "label": "int64",
                     "value": "int64-8"
+                },
+                {
+                    "label": "float64",
+                    "value": "float64-8"
                 }
             ],
             "placeholder": "请选择数据类型",

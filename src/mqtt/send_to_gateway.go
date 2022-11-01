@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	server_map "tp-modbus/map"
+	"tp-modbus/src/util"
 
 	"github.com/tbrandon/mbserver"
 )
@@ -38,8 +39,8 @@ func RspRtuReadHoldingRegisters(frame mbserver.Framer, data []byte, deviceId str
 	if res := bytes.Compare(frame.Bytes()[0:2], data[0:2]); res == 0 { // 正常返回
 		b := data[3 : len(data)-2]
 		var payloadMap = make(map[string]interface{})
-		var valueMap = make(map[string]float64)
-		valueMap[server_map.SubDeviceConfigMap[deviceId].Key] = float64(BytesToInt(b, server_map.SubDeviceConfigMap[deviceId].DataType))
+		var valueMap = make(map[string]interface{})
+		valueMap[server_map.SubDeviceConfigMap[deviceId].Key] = BytesToInt(b, server_map.SubDeviceConfigMap[deviceId].DataType)
 		payloadMap["token"] = server_map.SubDeviceConfigMap[deviceId].AccessToken
 		payloadMap["values"] = valueMap
 		log.Println(payloadMap)
@@ -55,7 +56,7 @@ func RspRtuReadHoldingRegisters(frame mbserver.Framer, data []byte, deviceId str
 }
 
 //2字节转int64
-func BytesToInt(b []byte, dataType string) int64 {
+func BytesToInt(b []byte, dataType string) interface{} {
 	bytesBuffer := bytes.NewBuffer(b)
 	switch dataType {
 	case "int16-2":
@@ -78,6 +79,8 @@ func BytesToInt(b []byte, dataType string) int64 {
 		var x uint32
 		binary.Read(bytesBuffer, binary.BigEndian, &x)
 		return int64(x)
+	case "float64-8":
+		return util.Float64frombytes(b)
 	default:
 		return int64(0)
 	}
