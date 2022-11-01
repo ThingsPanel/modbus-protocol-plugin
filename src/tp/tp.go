@@ -38,40 +38,7 @@ func GetGatewayConfig(AccessToken string) (server_map.Gateway, error) {
 	// 			Key:             "temp",
 	// 			AddressNum:      4,
 	// 			DataType:        "int64-8",
-	// 		},
-	// 		{
-	// 			DeviceId:        "003",
-	// 			AccessToken:     "654323",
-	// 			Interval:        3, //时间间隔
-	// 			DeviceAddress:   1, //设备地址
-	// 			FunctionCode:    3, //功能码
-	// 			StartingAddress: 9, //起始地址
-	// 			Key:             "temp",
-	// 			AddressNum:      4,
-	// 			DataType:        "int64-8",
-	// 		},
-	// 		{
-	// 			DeviceId:        "004",
-	// 			AccessToken:     "654324",
-	// 			Interval:        3,  //时间间隔
-	// 			DeviceAddress:   1,  //设备地址
-	// 			FunctionCode:    3,  //功能码
-	// 			StartingAddress: 13, //起始地址
-	// 			Key:             "temp",
-	// 			AddressNum:      4,
-	// 			DataType:        "int64-8",
-	// 		},
-	// 		{
-	// 			DeviceId:        "005",
-	// 			AccessToken:     "654325",
-	// 			Interval:        3,  //时间间隔
-	// 			DeviceAddress:   1,  //设备地址
-	// 			FunctionCode:    3,  //功能码
-	// 			StartingAddress: 17, //起始地址
-	// 			Key:             "temp",
-	// 			AddressNum:      4,
-	// 			DataType:        "int64-8",
-	// 		},
+	// 		}
 	// 	},
 	// }
 	var gateway_data server_map.GatewayData

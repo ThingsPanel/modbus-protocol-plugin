@@ -6,7 +6,7 @@
             "label": "功能码",
             "options": [
                 {
-                    "label": "01读线圈状态",
+                    "label": "01读线圈状态/05强制单个线圈",
                     "value": 1
                 },
                 {
@@ -14,7 +14,7 @@
                     "value": 2
                 },
                 {
-                    "label": "03读保持寄存器",
+                    "label": "03读保持寄存器/06预置单个寄存器",
                     "value": 3
                 },
                 {
@@ -32,7 +32,7 @@
         {
             "type": "input",
             "dataKey": "Interval",
-            "label": "读取策略",
+            "label": "读取策略(秒)",
             "placeholder": "请输入时间间隔，单位s",
             "validate": {
                 "type": "number",
@@ -68,8 +68,8 @@
         {
             "type": "input",
             "dataKey": "AddressNum",
-            "label": "地址数量",
-            "placeholder": "请输入地址数量",
+            "label": "地址数量/线圈数量",
+            "placeholder": "03功能码输入地址数量/01功能码输入线圈数量",
             "validate": {
                 "type": "number",
                 "rules": "/^\\d{1,}$/",
@@ -83,31 +83,35 @@
             "label": "数据类型",
             "options": [
                 {
-                    "label": "int16",
+                    "label": "线圈",
+                    "value": "int"
+                },
+                {
+                    "label": "int16-1地址数量",
                     "value": "int16-2"
                 },
                 {
-                    "label": "uint16",
+                    "label": "uint16-1地址数量",
                     "value": "uint16-2"
                 },
                 {
-                    "label": "int32",
+                    "label": "int32-2地址数量",
                     "value": "int32-4"
                 },
                 {
-                    "label": "uint32",
+                    "label": "uint32-2地址数量",
                     "value": "uint32-4"
                 },
                 {
-                    "label": "int64",
+                    "label": "int64-4地址数量",
                     "value": "int64-8"
                 },
                 {
-                    "label": "float64",
+                    "label": "float64-4地址数量",
                     "value": "float64-8"
                 }
             ],
-            "placeholder": "请选择数据类型",
+            "placeholder": "请选择数据类型（读写线圈选“线圈”）",
             "validate": {
                 "type": "string",
                 "required": true,
@@ -117,8 +121,8 @@
         {
             "type": "input",
             "dataKey": "Key",
-            "label": "属性别名",
-            "placeholder": "请输入属性别名",
+            "label": "属性别名（数组用英文,隔开）",
+            "placeholder": "请输入属性别名（别名数量=地址/数据类型的地址数量）",
             "validate": {
                 "type": "string",
                 "required": true,
