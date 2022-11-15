@@ -10,6 +10,7 @@ import (
 	server_map "tp-modbus/map"
 	"tp-modbus/src/util"
 
+	"github.com/gogf/gf/encoding/gbinary"
 	"github.com/tbrandon/mbserver"
 )
 
@@ -36,6 +37,10 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 		} else if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_TCP" {
 			RspTcpReadHoldingRegisters(frame, buf[:n], deviceId)
 		}
+	} else if server_map.SubDeviceConfigMap[deviceId].FunctionCode == uint8(1) {
+		if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_RTU" {
+			RspReadCoils(frame, buf[:n], deviceId)
+		}
 	}
 }
 
@@ -45,7 +50,7 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 func RspRtuReadHoldingRegisters(frame mbserver.Framer, data []byte, deviceId string) {
 	// 返回功能码是3为正常，81为异常
 	if res := bytes.Compare(frame.Bytes()[0:2], data[0:2]); res == 0 { // 正常返回
-		b := data[3 : len(data)-2]
+		b := data[3 : len(data)-2] // 数值
 		BytesAnalysisAndSend(b, deviceId)
 	} else {
 		log.Println("网关设备异常返回:", data)
@@ -66,6 +71,19 @@ func RspTcpReadHoldingRegisters(frame mbserver.Framer, data []byte, deviceId str
 	}
 }
 
+// RTU功能码-1，读保持寄存器
+// frame为发送指令的结构体
+// 解析出数据数据
+func RspReadCoils(frame mbserver.Framer, data []byte, deviceId string) {
+	// 返回功能码是1为正常，81为异常
+	if res := bytes.Compare(frame.Bytes()[0:2], data[0:2]); res == 0 { // 正常返回
+		b := data[3 : len(data)-2] // 数值
+		BytesAnalysisAndSend1(b, deviceId)
+	} else {
+		log.Println("网关设备异常返回:", data)
+	}
+}
+
 //功能码3字节解析和发送
 func BytesAnalysisAndSend(b []byte, deviceId string) {
 	var payloadMap = make(map[string]interface{})
@@ -76,6 +94,34 @@ func BytesAnalysisAndSend(b []byte, deviceId string) {
 	if len(keyList) == len(valueList) && (len(keyList) != 0 && len(valueList) != 0) {
 		for index, key := range keyList {
 			valueMap[key] = valueList[index]
+		}
+		payloadMap["token"] = server_map.SubDeviceConfigMap[deviceId].AccessToken
+		payloadMap["values"] = valueMap
+		log.Println(payloadMap)
+		payload, err := json.Marshal(payloadMap)
+		if err != nil {
+			log.Println("map转json格式错误...", err.Error(), payloadMap)
+		} else {
+			Send(payload)
+		}
+	} else {
+		log.Println("别名数组的数量和值的数量不一致！")
+	}
+}
+
+//功能码1字节解析和发送
+// 87654321 高位在前，低位在后
+func BytesAnalysisAndSend1(b []byte, deviceId string) {
+	var payloadMap = make(map[string]interface{})
+	var valueMap = make(map[string]interface{})
+	keyList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Key, ",")
+	//valueList := BytesToInt(b, server_map.SubDeviceConfigMap[deviceId].DataType)
+	// 返回的线圈字节数应该满足配置的key列表长度
+	bit := gbinary.DecodeBytesToBits(b) //转bit数组
+	log.Println(bit)
+	if len(keyList) <= len(bit) {
+		for index, key := range keyList {
+			valueMap[key] = bit[len(bit)-1-index]
 		}
 		payloadMap["token"] = server_map.SubDeviceConfigMap[deviceId].AccessToken
 		payloadMap["values"] = valueMap

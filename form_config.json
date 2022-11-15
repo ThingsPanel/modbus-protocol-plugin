@@ -83,7 +83,7 @@
             "label": "数据类型",
             "options": [
                 {
-                    "label": "线圈",
+                    "label": "线圈-1线圈数量",
                     "value": "int"
                 },
                 {
@@ -121,8 +121,8 @@
         {
             "type": "input",
             "dataKey": "Key",
-            "label": "属性别名（数组用英文,隔开）",
-            "placeholder": "请输入属性别名（别名数量=地址/数据类型的地址数量）",
+            "label": "属性别名（多别名用英文,隔开）",
+            "placeholder": "请输入属性别名（别名数量=地址/数据类型的地址或线圈数量）",
             "validate": {
                 "type": "string",
                 "required": true,

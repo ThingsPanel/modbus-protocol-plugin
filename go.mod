@@ -31,6 +31,7 @@ require (
 	github.com/go-basic/uuid v1.0.0
 	github.com/goburrow/modbus v0.1.0 // indirect
 	github.com/goburrow/serial v0.1.0 // indirect
+	github.com/gogf/gf v1.16.9
 	github.com/google/uuid v1.3.0
 	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/spf13/viper v1.13.0

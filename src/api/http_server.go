@@ -58,11 +58,19 @@ func UpdateSubDeviceConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Println("req json: ", reqdata)
+
 	server_map.SubDeviceConfigMap[reqdata.DeviceId] = reqdata.DeviceConfig //修改子设备配置只需要修改map中的配置
 	var rspdata = make(map[string]interface{})
 	w.Header().Set("Content-Type", "application/json")
 	rspdata["code"] = 200
 	rspdata["message"] = "success"
+	//校验表单
+	if reqdata.DeviceConfig.FunctionCode == uint8(1) {
+		if len(reqdata.DeviceConfig.Key) > int(reqdata.DeviceConfig.AddressNum) {
+			rspdata["code"] = 400
+			rspdata["message"] = "属性别名数量与线圈数量不匹配！"
+		}
+	}
 	data, err := json.Marshal(rspdata)
 	if err != nil {
 		log.Println(err.Error())
