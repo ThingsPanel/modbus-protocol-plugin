@@ -31,13 +31,13 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 	//recvStr := string(buf[:n])
 	log.Println("收到网关设备（id:", gatewayId, "）发来的数据：", buf[:n])
 	// 判断功能码
-	if server_map.SubDeviceConfigMap[deviceId].FunctionCode == uint8(3) {
+	if frame.GetFunction() == uint8(3) {
 		if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_RTU" {
 			RspRtuReadHoldingRegisters(frame, buf[:n], deviceId)
 		} else if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_TCP" {
 			RspTcpReadHoldingRegisters(frame, buf[:n], deviceId)
 		}
-	} else if server_map.SubDeviceConfigMap[deviceId].FunctionCode == uint8(1) {
+	} else if frame.GetFunction() == uint8(1) {
 		if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_RTU" {
 			RspReadCoils(frame, buf[:n], deviceId)
 		}

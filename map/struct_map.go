@@ -1,6 +1,7 @@
 package server_map
 
 type Device struct {
+	GatewayId       string //网关设备id
 	DeviceId        string //子设备id
 	AccessToken     string //子设备token
 	Interval        int64  //触发时间间隔s

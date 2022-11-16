@@ -55,6 +55,8 @@ func GetGatewayConfig(AccessToken string) (server_map.Gateway, error) {
 	}
 	server_map.GatewayConfigMap[gateway_data.Data.GatewayId] = gateway_data.Data
 	for _, subDeviceConfig := range gateway_data.Data.SubDevice {
+		// 将网关id存入子设备属性中
+		subDeviceConfig.GatewayId = gateway_data.Data.GatewayId
 		server_map.SubDeviceConfigMap[subDeviceConfig.DeviceId] = subDeviceConfig
 	}
 	return gateway_data.Data, nil
