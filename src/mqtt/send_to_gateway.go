@@ -40,6 +40,8 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 	} else if frame.GetFunction() == uint8(1) {
 		if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_RTU" {
 			RspRTUReadCoils(frame, buf[:n], deviceId)
+		} else if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_TCP" {
+			RspTCPReadCoils(frame, buf[:n], deviceId)
 		}
 	}
 }
