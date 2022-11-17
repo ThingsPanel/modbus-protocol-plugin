@@ -39,7 +39,7 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 		}
 	} else if frame.GetFunction() == uint8(1) {
 		if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_RTU" {
-			RspReadCoils(frame, buf[:n], deviceId)
+			RspRTUReadCoils(frame, buf[:n], deviceId)
 		}
 	}
 }
@@ -74,10 +74,24 @@ func RspTcpReadHoldingRegisters(frame mbserver.Framer, data []byte, deviceId str
 // RTU功能码-1，读保持寄存器
 // frame为发送指令的结构体
 // 解析出数据数据
-func RspReadCoils(frame mbserver.Framer, data []byte, deviceId string) {
+func RspRTUReadCoils(frame mbserver.Framer, data []byte, deviceId string) {
 	// 返回功能码是1为正常，81为异常
 	if res := bytes.Compare(frame.Bytes()[0:2], data[0:2]); res == 0 { // 正常返回
 		b := data[3 : len(data)-2] // 数值
+		BytesAnalysisAndSend1(b, deviceId)
+	} else {
+		log.Println("网关设备异常返回:", data)
+	}
+}
+
+// TCP功能码-1，读保持寄存器
+// frame为发送指令的结构体
+// 解析出数据数据
+func RspTCPReadCoils(frame mbserver.Framer, data []byte, deviceId string) {
+	// 返回功能码是1为正常，81为异常
+	if res := bytes.Compare(frame.Bytes()[6:8], data[6:8]); res == 0 {
+		var b_len = uint8(data[8])
+		b := data[9 : 9+b_len]
 		BytesAnalysisAndSend1(b, deviceId)
 	} else {
 		log.Println("网关设备异常返回:", data)

@@ -114,6 +114,48 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 		case uint8(3): //写寄存器
 			frame.Function = 6
 		}
+	} else if pt == "MODBUS_TCP" {
+		var frame mbserver.TCPFrame
+		var starting_address uint16
+		var address_num uint16
+		frame.Length = 6
+		frame.ProtocolIdentifier = 0
+		frame.TransactionIdentifier = 0
+		frame.Device = server_map.SubDeviceConfigMap[sub_device_id].DeviceAddress // 设备地址
+		log.Println("功能码：", server_map.SubDeviceConfigMap[sub_device_id].FunctionCode)
+		switch server_map.SubDeviceConfigMap[sub_device_id].FunctionCode {
+		case uint8(1): // 写线圈
+			frame.Function = 5
+			// 找出消息的key对应的位置并组长字节报文
+			var msg map[string]interface{}
+			json.Unmarshal(m.Payload(), &msg)
+			key_list := strings.Split(server_map.SubDeviceConfigMap[sub_device_id].Key, ",")
+			for key, value := range msg {
+				var number = 0
+				for i := 0; i < len(key_list); i++ {
+					if key == key_list[i] {
+						number = i
+						break
+					}
+				}
+				starting_address = server_map.SubDeviceConfigMap[sub_device_id].StartingAddress + uint16(number)
+				// FF00为ON，0000为OFF
+				n := uint8(value.(float64)) * 255
+				address_num = 1
+				fmt.Println(starting_address, address_num)
+				addr_b := make([]byte, 2)
+				binary.BigEndian.PutUint16(addr_b, starting_address)
+				// 设备地址|功能码|{线圈地址|数据}|校验码
+				var data_b = []byte{addr_b[0], addr_b[1], n, 0}
+				frame.SetData(data_b)
+				SendMessage(&frame, sub_device_config.GatewayId, sub_device_config.DeviceId, frame.Bytes()) //发送指令给网关设备
+				init_frame := server_map.TCPFrameMap[sub_device_id]
+				init_frame.TransactionIdentifier = 1
+				SendMessage(&init_frame, sub_device_config.GatewayId, sub_device_config.DeviceId, init_frame.Bytes())
+			}
+		case uint8(3): //写寄存器
+			frame.Function = 6
+		}
 		//mbserver.SetDataWithRegisterAndNumber(&frame, server_map.SubDeviceConfigMap[deviceId].StartingAddress, server_map.SubDeviceConfigMap[deviceId].AddressNum)
 		//mqtt.SendMessage(&frame, gatewayId, deviceId, frame.Bytes()) //发送指令给网关设备
 	}
