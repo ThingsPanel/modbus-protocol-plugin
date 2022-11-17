@@ -73,7 +73,7 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 	d := strings.Split(m.Topic(), "/")
 	sub_device_id := d[len(d)-1]
 	sub_device_config := server_map.SubDeviceConfigMap[sub_device_id]
-	//fmt.Println(server_map.SubDeviceConfigMap)
+	log.Println("子设备配置：", server_map.SubDeviceConfigMap[sub_device_id])
 	// 根据子设备的配置和mqtt消息中的属性确定每个属性的起始地址
 	pt := server_map.GatewayConfigMap[sub_device_config.GatewayId].ProtocolType
 	if pt == "MODBUS_RTU" {
@@ -81,7 +81,7 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 		var starting_address uint16
 		var address_num uint16
 		frame.Address = server_map.SubDeviceConfigMap[sub_device_id].DeviceAddress // 设备地址
-		fmt.Println(server_map.SubDeviceConfigMap[sub_device_id].FunctionCode)
+		log.Println("功能码：", server_map.SubDeviceConfigMap[sub_device_id].FunctionCode)
 		switch server_map.SubDeviceConfigMap[sub_device_id].FunctionCode {
 		case uint8(1): // 写线圈
 			frame.Function = 5
