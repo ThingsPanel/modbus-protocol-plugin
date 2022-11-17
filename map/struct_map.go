@@ -1,5 +1,7 @@
 package server_map
 
+import "github.com/tbrandon/mbserver"
+
 type Device struct {
 	GatewayId       string //网关设备id
 	DeviceId        string //子设备id
@@ -25,5 +27,7 @@ type GatewayData struct {
 	Data    Gateway `json:"data"`
 }
 
-var GatewayConfigMap = make(map[string]Gateway)  // 网关tcp客户端集合
-var SubDeviceConfigMap = make(map[string]Device) // 网关tcp客户端集合
+var GatewayConfigMap = make(map[string]Gateway)      // 网关tcp客户端集合
+var SubDeviceConfigMap = make(map[string]Device)     // 子设备配置集合
+var TCPFrameMap = make(map[string]mbserver.TCPFrame) // 子设备请求指令集合
+var RTUFrameMap = make(map[string]mbserver.RTUFrame) // 子设备请求指令集合

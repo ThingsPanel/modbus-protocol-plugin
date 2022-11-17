@@ -41,6 +41,7 @@ func InitTCPGo(gatewayId string, deviceId string) {
 		// 生成指令
 		mbserver.SetDataWithRegisterAndNumber(&frame, server_map.SubDeviceConfigMap[deviceId].StartingAddress, server_map.SubDeviceConfigMap[deviceId].AddressNum)
 		mqtt.SendMessage(&frame, gatewayId, deviceId, frame.Bytes()) //发送指令给网关设备
+		server_map.TCPFrameMap["deviceId"] = frame                   //保存子设备指令
 		time.Sleep(time.Second * time.Duration(server_map.SubDeviceConfigMap[deviceId].Interval))
 	}
 }

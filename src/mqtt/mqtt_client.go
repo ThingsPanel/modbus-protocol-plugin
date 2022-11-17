@@ -108,6 +108,8 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 				var data_b = []byte{addr_b[0], addr_b[1], n, 0}
 				frame.SetData(data_b)
 				SendMessage(&frame, sub_device_config.GatewayId, sub_device_config.DeviceId, frame.Bytes()) //发送指令给网关设备
+				init_frame := server_map.RTUFrameMap[sub_device_id]
+				SendMessage(&init_frame, sub_device_config.GatewayId, sub_device_config.DeviceId, init_frame.Bytes())
 			}
 		case uint8(3): //写寄存器
 			frame.Function = 6
