@@ -13,7 +13,7 @@ func GetGatewayConfig(AccessToken string) (server_map.Gateway, error) {
 
 	//subDevice := []Device{device}
 	// gateway := server_map.Gateway{
-	// 	GatewayId:    "001",
+	// 	Id:    "001",
 	// 	ProtocolType: "MODBUS_RTU", //MODBUS_RTU MODBUS_TCP
 	// 	AccessToken:  "123456",
 	// 	SubDevice: []server_map.Device{
@@ -53,10 +53,10 @@ func GetGatewayConfig(AccessToken string) (server_map.Gateway, error) {
 	if json_error != nil {
 		return gateway_data.Data, json_error
 	}
-	server_map.GatewayConfigMap[gateway_data.Data.GatewayId] = gateway_data.Data
+	server_map.GatewayConfigMap[gateway_data.Data.Id] = gateway_data.Data
 	for _, subDeviceConfig := range gateway_data.Data.SubDevice {
 		// 将网关id存入子设备属性中
-		subDeviceConfig.GatewayId = gateway_data.Data.GatewayId
+		subDeviceConfig.GatewayId = gateway_data.Data.Id
 		server_map.SubDeviceConfigMap[subDeviceConfig.DeviceId] = subDeviceConfig
 	}
 	return gateway_data.Data, nil
@@ -67,11 +67,11 @@ func ProcessReq(accessToken string) {
 	gatewayConfig := server_map.GatewayConfigMap[accessToken]
 	if gatewayConfig.ProtocolType == "MODBUS_RTU" {
 		for _, deviceConfig := range gatewayConfig.SubDevice {
-			go modbus_rtu.InitRTUGo(gatewayConfig.GatewayId, deviceConfig.DeviceId)
+			go modbus_rtu.InitRTUGo(gatewayConfig.Id, deviceConfig.DeviceId)
 		}
 	} else if gatewayConfig.ProtocolType == "MODBUS_TCP" {
 		for _, deviceConfig := range gatewayConfig.SubDevice {
-			go modbus_rtu.InitTCPGo(gatewayConfig.GatewayId, deviceConfig.DeviceId)
+			go modbus_rtu.InitTCPGo(gatewayConfig.Id, deviceConfig.DeviceId)
 		}
 	}
 }

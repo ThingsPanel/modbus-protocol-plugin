@@ -11,6 +11,6 @@ func ApiGetGatewayConfig(req map[string]interface{}) ([]byte, error) {
 	if TpHost == "" {
 		TpHost = viper.GetString("thingspanel.address")
 	}
-	response, err := PostJson("http://"+TpHost+"/api/gateway/config", req)
+	response, err := PostJson("http://"+TpHost+"/api/plugin/device/config", req)
 	return response, err
 }

@@ -16,7 +16,7 @@ type Device struct {
 }
 
 type Gateway struct {
-	GatewayId    string   //网关设备id
+	Id           string   //网关设备id
 	ProtocolType string   //modbus协议类型：RTU TCP
 	AccessToken  string   //网关设备token
 	SubDevice    []Device //子设备

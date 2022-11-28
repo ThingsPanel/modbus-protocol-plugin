@@ -21,13 +21,13 @@
 ## thingspanel提供给插件的接口
 | 接口                          | 接口描述              |接口链接|
 | ----------- | ---------- | ---------- |
-| /api/gateway/config           | 设备连接时送来密钥，根据密钥获取插件相关设备的信息，"SubDevice"的属性时插件表单中定义的属性 | [传送](https://www.apifox.cn/apidoc/shared-34b48097-8c3a-4ffe-907e-12ff3c669936/api-43535958)      |
+| /api/plugin/device/config         | 设备连接时送来密钥，根据密钥获取插件相关设备的信息，"SubDevice"的属性时插件表单中定义的属性 | [传送](https://www.apifox.cn/apidoc/shared-34b48097-8c3a-4ffe-907e-12ff3c669936/api-43535958)      |
 
 
 ## 插件表单
 
 `./form_config.json`  （表单规则详情请参考modbus-protocol-plugin案例）
-ThingsPanel前端通过`/api/form/config`接口获取表单配置，生成子设备的表单，用户填写的表单数据会出现在ThingsPanel提供的`/api/gateway/config`接口返回的数据中的"SubDevice"属性中。
+ThingsPanel前端通过`/api/form/config`接口获取表单配置，生成子设备的表单，用户填写的表单数据会出现在ThingsPanel提供的`/api/plugin/device/config`接口返回的数据中的"SubDevice"属性中。
 
 ## 交换数据相关
 

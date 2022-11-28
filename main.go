@@ -31,13 +31,13 @@ func linkProcess(conn net.Conn) {
 			log.Println("密钥验证失败...", string(buf[:n]), err.Error())
 			return
 		}
-		server_map.TcpClientMap[gatewayConfig.GatewayId] = conn                   // 在集合中添加tcp连接
-		delete(server_map.GatewayChannelMap, gatewayConfig.GatewayId)             // 删除原网关设备通道并新建通道
-		server_map.GatewayChannelMap[gatewayConfig.GatewayId] = make(chan int, 1) // 创建网关通道
+		server_map.TcpClientMap[gatewayConfig.Id] = conn                   // 在集合中添加tcp连接
+		delete(server_map.GatewayChannelMap, gatewayConfig.Id)             // 删除原网关设备通道并新建通道
+		server_map.GatewayChannelMap[gatewayConfig.Id] = make(chan int, 1) // 创建网关通道
 		var s sync.Mutex
-		server_map.TcpClientSyncMap[gatewayConfig.GatewayId] = &s
+		server_map.TcpClientSyncMap[gatewayConfig.Id] = &s
 		//go process(conn, gatewayConfig.GatewayId)
-		tp.ProcessReq(gatewayConfig.GatewayId) // 启动一个goroutine来处理客户端的连接请求
+		tp.ProcessReq(gatewayConfig.Id) // 启动一个goroutine来处理客户端的连接请求
 	}
 }
 
