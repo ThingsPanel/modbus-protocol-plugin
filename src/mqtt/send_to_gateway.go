@@ -113,7 +113,12 @@ func BytesAnalysisAndSend(b []byte, deviceId string) {
 			valueMap[key] = valueList[index]
 		}
 		payloadMap["token"] = server_map.SubDeviceConfigMap[deviceId].AccessToken
-		payloadMap["values"] = valueMap
+		log.Println("发送的values:", valueMap)
+		valueByte, err := json.Marshal(valueMap)
+		if err != nil {
+			log.Println("map转json格式错误...", err.Error(), valueMap)
+		}
+		payloadMap["values"] = valueByte
 		log.Println(payloadMap)
 		payload, err := json.Marshal(payloadMap)
 		if err != nil {
@@ -141,7 +146,12 @@ func BytesAnalysisAndSend1(b []byte, deviceId string) {
 			valueMap[key] = bit[len(bit)-1-index]
 		}
 		payloadMap["token"] = server_map.SubDeviceConfigMap[deviceId].AccessToken
-		payloadMap["values"] = valueMap
+		log.Println("发送的values:", valueMap)
+		valueByte, err := json.Marshal(valueMap)
+		if err != nil {
+			log.Println("map转json格式错误...", err.Error(), valueMap)
+		}
+		payloadMap["values"] = valueByte
 		log.Println(payloadMap)
 		payload, err := json.Marshal(payloadMap)
 		if err != nil {
