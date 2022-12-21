@@ -8,7 +8,7 @@ import (
 	"time"
 	server_map "tp-modbus/map"
 	_ "tp-modbus/src/initialize"
-	_ "tp-modbus/src/mqtt"
+	"tp-modbus/src/mqtt"
 	"tp-modbus/src/tp"
 
 	"github.com/spf13/viper"
@@ -23,13 +23,17 @@ func linkProcess(conn net.Conn) {
 		log.Println("read from client failed, err: ", err)
 		return
 	}
-	log.Println("收到网关设备发来的密钥：", string(buf[:n]))
+	accessToken := string(buf[:n])
+	log.Println("收到网关设备发来的密钥：", accessToken)
 	time.Sleep(time.Second * 1) // 建立连接后暂停一秒（有些设备需要等待）
 	if string(buf[:n]) != "" {
-		gatewayConfig, err := tp.GetGatewayConfig(string(buf[:n])) // 校验密钥并获取网关设备配置
+		gatewayConfig, err := tp.GetGatewayConfig(accessToken) // 校验密钥并获取网关设备配置
 		if err != nil {
-			log.Println("密钥验证失败...", string(buf[:n]), err.Error())
+			log.Println("密钥验证失败...", accessToken, err.Error())
 			return
+		} else {
+			//设备上线
+			mqtt.SendStatus(accessToken, "1")
 		}
 		server_map.TcpClientMap[gatewayConfig.Id] = conn                   // 在集合中添加tcp连接
 		delete(server_map.GatewayChannelMap, gatewayConfig.Id)             // 删除原网关设备通道并新建通道

@@ -7,6 +7,7 @@ mqtt:
   password: root
   topic_to_publish: device/attributes #发送主题
   topic_to_subscribe: plugin/modbus/#
+  status_topic: device/status
   subscribe_pool: 100 #客户端订阅处理并发池
 
 http_server:

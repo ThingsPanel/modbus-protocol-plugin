@@ -25,6 +25,7 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 	n, err := reader.Read(buf[:]) // 读取数据
 	server_map.TcpClientSyncMap[gatewayId].Unlock()
 	if err != nil {
+		SendStatus(server_map.GatewayConfigMap[gatewayId].AccessToken, "0")
 		log.Println("网关设备(id:" + gatewayId + ")已断开连接!")
 		server_map.CloseGatewayGoroutine(gatewayId) // 关闭网关携程
 	}

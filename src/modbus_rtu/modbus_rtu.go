@@ -20,6 +20,7 @@ func InitRTUGo(gatewayId string, deviceId string) {
 	for {
 		if len(gc) > 0 { // 如果通道关闭则跳出携程
 			log.Println("网关通道收到信号，设备携程关闭，（设备id:", deviceId, ")")
+
 			break
 		}
 		if len(dc) > 0 {

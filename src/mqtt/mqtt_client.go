@@ -174,3 +174,15 @@ func Send(payload []byte) (err error) {
 	}
 	return t.Error()
 }
+
+//发送消息
+func SendStatus(accessToken string, status string) (err error) {
+	payload := `{"accessToken":"` + accessToken + `","values":{"status":"` + status + `"}}`
+	t := mqtt_client.Publish(viper.GetString("mqtt.device_status"), 0, true, string(payload))
+	if t.Error() != nil {
+		log.Println("发送消息失败...", string(payload), t.Error())
+	} else {
+		log.Println("发送...", string(payload))
+	}
+	return t.Error()
+}
