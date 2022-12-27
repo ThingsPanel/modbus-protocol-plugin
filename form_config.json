@@ -44,7 +44,7 @@
         {
             "type": "input",
             "dataKey": "DeviceAddress",
-            "label": "设备地址",
+            "label": "从机地址",
             "placeholder": "请输入设备地址",
             "validate": {
                 "type": "number",
