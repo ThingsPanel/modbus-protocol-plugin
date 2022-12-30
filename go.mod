@@ -5,6 +5,7 @@ go 1.17
 require github.com/tbrandon/mbserver v0.0.0-20211210035124-daf3c8c4269f
 
 require (
+	github.com/Knetic/govaluate v3.0.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect

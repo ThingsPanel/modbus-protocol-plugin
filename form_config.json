@@ -128,6 +128,16 @@
                 "required": true,
                 "message": "属性别名不能为空"
             }
+        },
+        {
+            "type": "input",
+            "dataKey": "Equation",
+            "label": "公式处理(测试中)",
+            "placeholder": "所有值通用可以只填一个公式，否则公式用英文,隔开",
+            "validate": {
+                "type": "string",
+                "required": false
+            }
         }
     ]
 }

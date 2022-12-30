@@ -173,10 +173,34 @@ func BytesAnalysisAndSend(b []byte, deviceId string) {
 	var valueMap = make(map[string]interface{})
 	keyList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Key, ",")
 	valueList := BytesToInt(b, server_map.SubDeviceConfigMap[deviceId].DataType)
+	EquationList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Equation, ",")
 	// 别名数组的数量和值的数量必须相等且不等于0
 	if len(keyList) == len(valueList) && (len(keyList) != 0 && len(valueList) != 0) {
 		for index, key := range keyList {
-			valueMap[key] = valueList[index]
+			//判断公式
+			if len(EquationList) == 1 {
+				if EquationList[0] != "" {
+					value, err := util.Equation(EquationList[0], valueList[index])
+					if err != nil {
+						log.Println("公式执行错误：", err.Error())
+					}
+					valueMap[key] = value
+				} else {
+					valueMap[key] = valueList[index]
+				}
+			} else {
+				if EquationList[index] != "" {
+					value, err := util.Equation(EquationList[index], valueList[index])
+					if err != nil {
+						log.Println("公式执行错误：", err.Error())
+					}
+					valueMap[key] = value
+				} else {
+					valueMap[key] = valueList[index]
+				}
+
+			}
+
 		}
 		payloadMap["token"] = server_map.SubDeviceConfigMap[deviceId].AccessToken
 		log.Println("发送的values:", valueMap)
