@@ -7,8 +7,11 @@ import (
 	"encoding/json"
 	"log"
 	"strings"
+	"time"
 	server_map "tp-modbus/map"
 	"tp-modbus/src/util"
+
+	"math/rand"
 
 	"github.com/gogf/gf/encoding/gbinary"
 	"github.com/tbrandon/mbserver"
@@ -16,8 +19,10 @@ import (
 
 // 发送指令给设备网关
 func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, message []byte) {
+	rand.Seed(time.Now().UnixNano())
+	number := rand.Intn(10000)
 	// 发送指令时候抢占锁，等待接受完后解锁
-	log.Println("发送指令给网关设备（id:", gatewayId, "）：", message)
+	log.Println(number, "发送指令给网关设备(id:", gatewayId, "):", message)
 	server_map.TcpClientSyncMap[gatewayId].Lock()
 	server_map.TcpClientMap[gatewayId].Write(message)
 	reader := bufio.NewReader(server_map.TcpClientMap[gatewayId])
@@ -30,7 +35,7 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 		server_map.CloseGatewayGoroutine(gatewayId) // 关闭网关携程
 	}
 	//recvStr := string(buf[:n])
-	log.Println("收到网关设备（id:", gatewayId, "）发来的数据：", buf[:n])
+	log.Println(number, "收到网关设备发来的数据(id:", gatewayId, "):", buf[:n])
 	// 判断功能码
 	if frame.GetFunction() == uint8(3) {
 		if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_RTU" {
