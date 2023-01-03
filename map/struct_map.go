@@ -14,6 +14,7 @@ type Device struct {
 	Key             string //属性名（如：temp,hum等）
 	DataType        string //数据类型（3和6功能码的数据类型：int16-2 uint16-2 int32-4 uint32-4 int64-8（一个地址2字节））；uint64在转换中会丢失精度，uint32在转float时候某些值也会丢失精度
 	Equation        string
+	Precision       string
 }
 
 type Gateway struct {

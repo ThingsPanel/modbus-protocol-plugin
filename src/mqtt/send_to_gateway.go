@@ -11,9 +11,12 @@ import (
 	server_map "tp-modbus/map"
 	"tp-modbus/src/util"
 
+	"github.com/spf13/cast"
+
 	"math/rand"
 
 	"github.com/gogf/gf/encoding/gbinary"
+	"github.com/shopspring/decimal"
 	"github.com/tbrandon/mbserver"
 )
 
@@ -179,6 +182,7 @@ func BytesAnalysisAndSend(b []byte, deviceId string) {
 	keyList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Key, ",")
 	valueList := BytesToInt(b, server_map.SubDeviceConfigMap[deviceId].DataType)
 	EquationList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Equation, ",")
+	PrecisionList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Precision, ",")
 	// 别名数组的数量和值的数量必须相等且不等于0
 	if len(keyList) == len(valueList) && (len(keyList) != 0 && len(valueList) != 0) {
 		for index, key := range keyList {
@@ -204,6 +208,20 @@ func BytesAnalysisAndSend(b []byte, deviceId string) {
 					valueMap[key] = valueList[index]
 				}
 
+			}
+			//判断精度
+			if len(PrecisionList) == 1 {
+				if PrecisionList[0] != "" {
+					if value, ok := valueMap[key].(float64); ok {
+						valueMap[key], _ = decimal.NewFromFloat(value).Round(cast.ToInt32(PrecisionList[0])).Float64()
+					}
+				}
+			} else {
+				if EquationList[index] != "" {
+					if value, ok := valueMap[key].(float64); ok {
+						valueMap[key], _ = decimal.NewFromFloat(value).Round(cast.ToInt32(PrecisionList[index])).Float64()
+					}
+				}
 			}
 
 		}
