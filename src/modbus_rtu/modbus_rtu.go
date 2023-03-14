@@ -18,17 +18,6 @@ func InitRTUGo(gatewayId string, deviceId string) {
 	server_map.DeviceChannelSync.Unlock()
 	var i uint16 = 0
 	for {
-		if len(gc) > 0 { // 如果通道关闭则跳出携程
-			log.Println("网关通道收到信号，设备携程关闭，（设备id:", deviceId, ")")
-
-			break
-		}
-		if len(dc) > 0 {
-			close(dc)
-			delete(server_map.DeviceChannelMap, deviceId)
-			log.Println("设备通道收到信号，设备携程关闭，（设备id:", deviceId, ")")
-			break
-		}
 		if _, ok := server_map.SubDeviceConfigMap[deviceId]; !ok { //设备被删除
 			break
 		}
@@ -40,6 +29,20 @@ func InitRTUGo(gatewayId string, deviceId string) {
 		mbserver.SetDataWithRegisterAndNumber(&frame, server_map.SubDeviceConfigMap[deviceId].StartingAddress, server_map.SubDeviceConfigMap[deviceId].AddressNum)
 		mqtt.SendMessage(&frame, gatewayId, deviceId, frame.Bytes()) //发送指令给网关设备
 		server_map.RTUFrameMap[deviceId] = frame                     //保存子设备指令
-		time.Sleep(time.Second * time.Duration(server_map.SubDeviceConfigMap[deviceId].Interval))
+		// 1秒判断一次是否收到结束携程信号
+		n := server_map.SubDeviceConfigMap[deviceId].Interval
+		for j := int64(0); j < n; j++ {
+			if len(gc) > 0 { // 如果通道关闭则跳出携程
+				log.Println("网关通道收到信号，设备携程关闭，（设备id:", deviceId, ")")
+				return
+			}
+			if len(dc) > 0 {
+				close(dc)
+				delete(server_map.DeviceChannelMap, deviceId)
+				log.Println("设备通道收到信号，设备携程关闭，（设备id:", deviceId, ")")
+				break
+			}
+			time.Sleep(time.Second)
+		}
 	}
 }

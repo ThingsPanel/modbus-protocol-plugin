@@ -29,7 +29,7 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 	server_map.TcpClientSyncMap[gatewayId].Lock()
 	server_map.TcpClientMap[gatewayId].Write(message)
 	reader := bufio.NewReader(server_map.TcpClientMap[gatewayId])
-	var buf [128]byte
+	var buf [1024]byte
 	n, err := reader.Read(buf[:]) // 读取数据
 	server_map.TcpClientSyncMap[gatewayId].Unlock()
 	if err != nil {
