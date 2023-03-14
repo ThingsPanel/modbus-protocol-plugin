@@ -25,20 +25,21 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 	rand.Seed(time.Now().UnixNano())
 	number := rand.Intn(10000)
 	// 发送指令时候抢占锁，等待接受完后解锁
-	log.Println(number, "发送指令给网关设备(id:", gatewayId, "):", message)
 	server_map.TcpClientSyncMap[gatewayId].Lock()
+	log.Println(number, "加锁，发送====》设备(id:", gatewayId, "):", message)
 	server_map.TcpClientMap[gatewayId].Write(message)
 	reader := bufio.NewReader(server_map.TcpClientMap[gatewayId])
 	var buf [1024]byte
 	n, err := reader.Read(buf[:]) // 读取数据
-	server_map.TcpClientSyncMap[gatewayId].Unlock()
+
 	if err != nil {
 		SendStatus(server_map.GatewayConfigMap[gatewayId].AccessToken, "0")
 		log.Println("网关设备(id:" + gatewayId + ")已断开连接!")
 		server_map.CloseGatewayGoroutine(gatewayId) // 关闭网关携程
 	}
 	//recvStr := string(buf[:n])
-	log.Println(number, "收到网关设备发来的数据(id:", gatewayId, "):", buf[:n])
+	log.Println(number, "解锁，接收《====设备(id:", gatewayId, "):", buf[:n])
+	server_map.TcpClientSyncMap[gatewayId].Unlock()
 	// 判断功能码
 	if frame.GetFunction() == uint8(3) {
 		if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_RTU" {
