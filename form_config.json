@@ -121,7 +121,7 @@
         {
             "type": "input",
             "dataKey": "Key",
-            "label": "属性别名（多别名用英文,隔开）",
+            "label": "设备字段（多别名用英文,隔开）",
             "placeholder": "请输入属性别名（别名数量=地址/数据类型的地址或线圈数量）",
             "validate": {
                 "type": "string",
