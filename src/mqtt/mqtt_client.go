@@ -72,6 +72,7 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 	// 获取子设备id
 	d := strings.Split(m.Topic(), "/")
 	sub_device_id := d[len(d)-1]
+	log.Println("子设备id是", sub_device_id)
 	sub_device_config := server_map.SubDeviceConfigMap[sub_device_id]
 	log.Println("子设备配置：", server_map.SubDeviceConfigMap[sub_device_id])
 	// 根据子设备的配置和mqtt消息中的属性确定每个属性的起始地址
