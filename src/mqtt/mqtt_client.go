@@ -20,7 +20,18 @@ import (
 var mqtt_client mqtt.Client
 
 func init() {
+	conf()
 	listenMQTT()
+}
+func conf() {
+	log.Println("加载配置文件...")
+	viper.SetConfigType("yaml")
+	viper.SetConfigFile("./config.yaml")
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Println(err.Error())
+	}
+	log.Println("加载配置文件完成...")
 }
 func listenMQTT() {
 	broker := os.Getenv("MQTT_HOST")
