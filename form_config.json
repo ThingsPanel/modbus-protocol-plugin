@@ -107,8 +107,8 @@
                     "value": "int64-8"
                 },
                 {
-                    "label": "float64-2地址数量",
-                    "value": "float64-4"
+                    "label": "float32-2地址数量",
+                    "value": "float32-4"
                 },
                 {
                     "label": "float64-4地址数量",
