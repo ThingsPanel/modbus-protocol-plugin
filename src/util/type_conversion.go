@@ -17,3 +17,16 @@ func Float64bytes(float float64) []byte {
 	binary.BigEndian.PutUint64(bytes, bits)
 	return bytes
 }
+
+func Float32frombytes(bytes []byte) float32 {
+	bits := binary.BigEndian.Uint32(bytes)
+	float := math.Float32frombits(bits)
+	return float
+}
+
+func Float32bytes(float float32) []byte {
+	bits := math.Float32bits(float)
+	bytes := make([]byte, 8)
+	binary.BigEndian.PutUint32(bytes, bits)
+	return bytes
+}

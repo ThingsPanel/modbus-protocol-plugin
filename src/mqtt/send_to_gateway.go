@@ -322,6 +322,11 @@ func BytesToInt(b []byte, dataType string) []interface{} {
 			v_list = append(v_list, v)
 		}
 		return v_list
+	case "float32-4":
+		for i := 0; i < len(b)/4; i++ {
+			v_list = append(v_list, util.Float32frombytes(b[i*4:i*4+4]))
+		}
+		return v_list
 	case "float64-8":
 		for i := 0; i < len(b)/8; i++ {
 			v_list = append(v_list, util.Float64frombytes(b[i*8:i*8+8]))
