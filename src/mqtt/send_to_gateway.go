@@ -39,8 +39,11 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 	}
 	//recvStr := string(buf[:n])
 	log.Println(number, "解锁，接收《====设备(id:", gatewayId, "):", buf[:n])
-	
-	server_map.TcpClientSyncMap[gatewayId].Unlock()
+	if server_map.TcpClientSyncMap[gatewayId].TryLock() {
+		server_map.TcpClientSyncMap[gatewayId].Unlock()
+	} else {
+		server_map.TcpClientSyncMap[gatewayId].Unlock()
+	}
 
 	// 判断功能码
 	if frame.GetFunction() == uint8(3) {
