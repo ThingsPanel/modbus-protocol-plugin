@@ -39,9 +39,9 @@ func SendMessage(frame mbserver.Framer, gatewayId string, deviceId string, messa
 	}
 	//recvStr := string(buf[:n])
 	log.Println(number, "解锁，接收《====设备(id:", gatewayId, "):", buf[:n])
-	if !server_map.TcpClientSyncMap[gatewayId].TryLock() {
-		server_map.TcpClientSyncMap[gatewayId].Unlock()
-	}
+	
+	server_map.TcpClientSyncMap[gatewayId].Unlock()
+
 	// 判断功能码
 	if frame.GetFunction() == uint8(3) {
 		if server_map.GatewayConfigMap[gatewayId].ProtocolType == "MODBUS_RTU" {
