@@ -186,7 +186,7 @@ func BytesAnalysisAndSend(b []byte, deviceId string) {
 	var payloadMap = make(map[string]interface{})
 	var valueMap = make(map[string]interface{})
 	keyList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Key, ",")
-	valueList := BytesToInt(b, server_map.SubDeviceConfigMap[deviceId].DataType)
+	valueList := BytesToInt(b, server_map.SubDeviceConfigMap[deviceId].DataType) //大端
 	EquationList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Equation, ",")
 	PrecisionList := strings.Split(server_map.SubDeviceConfigMap[deviceId].Precision, ",")
 	// 别名数组的数量和值的数量必须相等且不等于0
@@ -283,7 +283,7 @@ func BytesAnalysisAndSend1(b []byte, deviceId string) {
 	}
 }
 
-//字节转数值
+//字节转数值（大端）
 func BytesToInt(b []byte, dataType string) []interface{} {
 	var v_list []interface{}
 	switch dataType {
@@ -335,6 +335,65 @@ func BytesToInt(b []byte, dataType string) []interface{} {
 	case "float64-8":
 		for i := 0; i < len(b)/8; i++ {
 			v_list = append(v_list, util.Float64frombytes(b[i*8:i*8+8]))
+		}
+		return v_list
+	default:
+		return v_list
+	}
+}
+
+//字节转数值（小端）
+func BytesToIntLittleEndian(b []byte, dataType string) []interface{} {
+	var v_list []interface{}
+	switch dataType {
+	case "int16-2":
+		for i := 0; i < len(b)/2; i++ {
+			var v int16
+			bytesBuffer := bytes.NewBuffer(b[i*2 : i*2+2])
+			binary.Read(bytesBuffer, binary.LittleEndian, &v)
+			v_list = append(v_list, v)
+		}
+		return v_list
+	case "int32-4":
+		for i := 0; i < len(b)/4; i++ {
+			var v int32
+			bytesBuffer := bytes.NewBuffer(b[i*4 : i*4+4])
+			binary.Read(bytesBuffer, binary.LittleEndian, &v)
+			v_list = append(v_list, v)
+		}
+		return v_list
+	case "int64-8":
+		for i := 0; i < len(b)/8; i++ {
+			var v int64
+			bytesBuffer := bytes.NewBuffer(b[i*8 : i*8+8])
+			binary.Read(bytesBuffer, binary.LittleEndian, &v)
+			v_list = append(v_list, v)
+		}
+		return v_list
+	case "uint16-2":
+		for i := 0; i < len(b)/2; i++ {
+			var v uint16
+			bytesBuffer := bytes.NewBuffer(b[i*2 : i*2+2])
+			binary.Read(bytesBuffer, binary.LittleEndian, &v)
+			v_list = append(v_list, v)
+		}
+		return v_list
+	case "uint32-4":
+		for i := 0; i < len(b)/4; i++ {
+			var v uint32
+			bytesBuffer := bytes.NewBuffer(b[i*4 : i*4+4])
+			binary.Read(bytesBuffer, binary.LittleEndian, &v)
+			v_list = append(v_list, v)
+		}
+		return v_list
+	case "float32-4":
+		for i := 0; i < len(b)/4; i++ {
+			v_list = append(v_list, util.Float32frombytesLittleEndian(b[i*4:i*4+4]))
+		}
+		return v_list
+	case "float64-8":
+		for i := 0; i < len(b)/8; i++ {
+			v_list = append(v_list, util.Float64frombytesLittleEndian(b[i*8:i*8+8]))
 		}
 		return v_list
 	default:
