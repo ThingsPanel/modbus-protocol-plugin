@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	server_map "tp-modbus/map"
+	"tp-modbus/src/util"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/go-basic/uuid"
@@ -124,37 +125,57 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 				SendMessage(&init_frame, sub_device_config.GatewayId, sub_device_config.DeviceId, init_frame.Bytes())
 			}
 		case uint8(3): //写寄存器
-			frame.Function = 6
 
-			if server_map.SubDeviceConfigMap[sub_device_id].AddressNum == uint16(1) { //单个寄存器
-				//找出消息的key对应的位置并组长字节报文
-				var msg map[string]interface{}
-				json.Unmarshal(m.Payload(), &msg)
-				key_list := strings.Split(server_map.SubDeviceConfigMap[sub_device_id].Key, ",")
-				for key, value := range msg {
-					var number = 0
-					for i := 0; i < len(key_list); i++ {
-						if key == key_list[i] {
-							number = i
-							break
-						}
+			//找出消息的key对应的位置并组长字节报文
+			var msg map[string]interface{}
+			json.Unmarshal(m.Payload(), &msg)
+			key_list := strings.Split(server_map.SubDeviceConfigMap[sub_device_id].Key, ",")
+			for key, value := range msg {
+				var number = 0
+				for i := 0; i < len(key_list); i++ {
+					if key == key_list[i] {
+						number = i
+						break
 					}
-					starting_address = server_map.SubDeviceConfigMap[sub_device_id].StartingAddress + uint16(number)
-
-					fmt.Println(starting_address, address_num)
-					//地址字节
-					addr_b := make([]byte, 2)
-					binary.BigEndian.PutUint16(addr_b, starting_address)
-					//数据字节
-					addr_e := make([]byte, 2)
-					binary.BigEndian.PutUint16(addr_e, uint16(value.(float64)))
-					// 设备地址|功能码|{线圈地址|数据}|校验码
-					addr_b = append(addr_b, addr_e...)
-					frame.SetData(addr_b)
-					SendMessage(&frame, sub_device_config.GatewayId, sub_device_config.DeviceId, frame.Bytes()) //发送指令给网关设备
-					init_frame := server_map.RTUFrameMap[sub_device_id]
-					SendMessage(&init_frame, sub_device_config.GatewayId, sub_device_config.DeviceId, init_frame.Bytes())
 				}
+				starting_address = server_map.SubDeviceConfigMap[sub_device_id].StartingAddress + uint16(number)
+
+				address_num = server_map.SubDeviceConfigMap[sub_device_id].AddressNum
+				fmt.Println(starting_address, address_num)
+				//地址字节
+				addr_b := make([]byte, 2)
+				binary.BigEndian.PutUint16(addr_b, starting_address)
+				//数据字节
+				var value_b []byte
+				switch value.(type) {
+				case float32:
+					value_b = util.Float32bytes(value.(float32))
+				default:
+					value_b = util.Float64bytes(value.(float64))
+				}
+				//拼装发送报文
+				var data_b []byte
+				if address_num == 1 {
+					// 设备地址|数据
+					frame.Function = 6
+					data_b = append(addr_b, value_b...)
+				} else {
+					// 设备地址|寄存器个数|数据长度|数据
+					frame.Function = 16
+					//寄存器个数
+					num_e := make([]byte, 2)
+					binary.BigEndian.PutUint16(num_e, address_num)
+					data_b = append(addr_b, num_e...)
+					//数据长度字节
+					data_len := uint8(len(value_b))
+					data_b = append(data_b, data_len)
+					data_b = append(data_b, value_b...)
+				}
+				frame.SetData(data_b)
+				SendMessage(&frame, sub_device_config.GatewayId, sub_device_config.DeviceId, frame.Bytes()) //发送指令给网关设备
+				init_frame := server_map.RTUFrameMap[sub_device_id]
+				SendMessage(&init_frame, sub_device_config.GatewayId, sub_device_config.DeviceId, init_frame.Bytes())
+
 			}
 		}
 	} else if pt == "MODBUS_TCP" {
@@ -197,37 +218,56 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 				SendMessage(&init_frame, sub_device_config.GatewayId, sub_device_config.DeviceId, init_frame.Bytes())
 			}
 		case uint8(3): //写寄存器
-			frame.Function = 6
-			if server_map.SubDeviceConfigMap[sub_device_id].AddressNum == uint16(1) { //单个寄存器
-				//找出消息的key对应的位置并组长字节报文
-				var msg map[string]interface{}
-				json.Unmarshal(m.Payload(), &msg)
-				key_list := strings.Split(server_map.SubDeviceConfigMap[sub_device_id].Key, ",")
-				for key, value := range msg {
-					var number = 0
-					for i := 0; i < len(key_list); i++ {
-						if key == key_list[i] {
-							number = i
-							break
-						}
+			//找出消息的key对应的位置并组长字节报文
+			var msg map[string]interface{}
+			json.Unmarshal(m.Payload(), &msg)
+			key_list := strings.Split(server_map.SubDeviceConfigMap[sub_device_id].Key, ",")
+			for key, value := range msg {
+				var number = 0
+				for i := 0; i < len(key_list); i++ {
+					if key == key_list[i] {
+						number = i
+						break
 					}
-					starting_address = server_map.SubDeviceConfigMap[sub_device_id].StartingAddress + uint16(number)
-
-					fmt.Println(starting_address, address_num)
-					//地址字节
-					addr_b := make([]byte, 2)
-					binary.BigEndian.PutUint16(addr_b, starting_address)
-					//数据字节
-					addr_e := make([]byte, 2)
-					binary.BigEndian.PutUint16(addr_e, uint16(value.(float64)))
-					// 设备地址|功能码|{线圈地址|数据}|校验码
-					addr_b = append(addr_b, addr_e...)
-					frame.SetData(addr_b)
-					SendMessage(&frame, sub_device_config.GatewayId, sub_device_config.DeviceId, frame.Bytes()) //发送指令给网关设备
-					init_frame := server_map.TCPFrameMap[sub_device_id]
-					init_frame.TransactionIdentifier = 1
-					SendMessage(&init_frame, sub_device_config.GatewayId, sub_device_config.DeviceId, init_frame.Bytes())
 				}
+				starting_address = server_map.SubDeviceConfigMap[sub_device_id].StartingAddress + uint16(number)
+
+				address_num = server_map.SubDeviceConfigMap[sub_device_id].AddressNum
+				fmt.Println(starting_address, address_num)
+				//地址字节
+				addr_b := make([]byte, 2)
+				binary.BigEndian.PutUint16(addr_b, starting_address)
+				//数据字节
+				var value_b []byte
+				switch value.(type) {
+				case float32:
+					value_b = util.Float32bytes(value.(float32))
+				default:
+					value_b = util.Float64bytes(value.(float64))
+				}
+				//拼装发送报文
+				var data_b []byte
+				if address_num == 1 {
+					// 设备地址|数据
+					frame.Function = 6
+					data_b = append(addr_b, value_b...)
+				} else {
+					// 设备地址|寄存器个数|数据长度|数据
+					frame.Function = 16
+					//寄存器个数
+					num_e := make([]byte, 2)
+					binary.BigEndian.PutUint16(num_e, address_num)
+					data_b = append(addr_b, num_e...)
+					//数据长度字节
+					data_len := uint8(len(value_b))
+					data_b = append(data_b, data_len)
+					data_b = append(data_b, value_b...)
+				}
+				frame.SetData(data_b)
+				SendMessage(&frame, sub_device_config.GatewayId, sub_device_config.DeviceId, frame.Bytes()) //发送指令给网关设备
+				init_frame := server_map.TCPFrameMap[sub_device_id]
+				init_frame.TransactionIdentifier = 1
+				SendMessage(&init_frame, sub_device_config.GatewayId, sub_device_config.DeviceId, init_frame.Bytes())
 			}
 		}
 		//mbserver.SetDataWithRegisterAndNumber(&frame, server_map.SubDeviceConfigMap[deviceId].StartingAddress, server_map.SubDeviceConfigMap[deviceId].AddressNum)
