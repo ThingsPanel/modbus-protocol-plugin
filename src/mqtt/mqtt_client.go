@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"strings"
 
 	server_map "tp-modbus/map"
-	"tp-modbus/src/util"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/go-basic/uuid"
@@ -146,12 +146,11 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 				addr_b := make([]byte, 2)
 				binary.BigEndian.PutUint16(addr_b, starting_address)
 				//数据字节
-				var value_b []byte
-				switch value.(type) {
-				case float32:
-					value_b = util.Float32bytes(value.(float32))
-				default:
-					value_b = util.Float64bytes(value.(float64))
+				//数据字节
+				value_b, len, err := formateToByte(value, server_map.SubDeviceConfigMap[sub_device_id].DataType)
+				if err != nil {
+					log.Println(err.Error())
+					return
 				}
 				//拼装发送报文
 				var data_b []byte
@@ -167,8 +166,7 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 					binary.BigEndian.PutUint16(num_e, address_num)
 					data_b = append(addr_b, num_e...)
 					//数据长度字节
-					data_len := uint8(len(value_b))
-					data_b = append(data_b, data_len)
+					data_b = append(data_b, len)
 					data_b = append(data_b, value_b...)
 				}
 				frame.SetData(data_b)
@@ -238,12 +236,10 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 				addr_b := make([]byte, 2)
 				binary.BigEndian.PutUint16(addr_b, starting_address)
 				//数据字节
-				var value_b []byte
-				switch value.(type) {
-				case float32:
-					value_b = util.Float32bytes(value.(float32))
-				default:
-					value_b = util.Float64bytes(value.(float64))
+				value_b, len, err := formateToByte(value, server_map.SubDeviceConfigMap[sub_device_id].DataType)
+				if err != nil {
+					log.Println(err.Error())
+					return
 				}
 				//拼装发送报文
 				var data_b []byte
@@ -259,8 +255,7 @@ func MsgProc(c mqtt.Client, m mqtt.Message) {
 					binary.BigEndian.PutUint16(num_e, address_num)
 					data_b = append(addr_b, num_e...)
 					//数据长度字节
-					data_len := uint8(len(value_b))
-					data_b = append(data_b, data_len)
+					data_b = append(data_b, len)
 					data_b = append(data_b, value_b...)
 				}
 				frame.SetData(data_b)
@@ -299,4 +294,46 @@ func SendStatus(accessToken string, status string) (err error) {
 		log.Println("发送...", string(payload))
 	}
 	return t.Error()
+}
+
+func formateToByte(value interface{}, t string) ([]byte, uint8, error) {
+	datatype := strings.Split(t, "-")[0]
+	switch datatype {
+	case "int16":
+		num := int16(value.(float64))
+		byteSlice := make([]byte, 2)
+		binary.BigEndian.PutUint16(byteSlice, uint16(num))
+		return byteSlice, uint8(2), nil
+	case "uint16":
+		num := uint16(value.(float64))
+		byteSlice := make([]byte, 2)
+		binary.BigEndian.PutUint16(byteSlice, uint16(num))
+		return byteSlice, uint8(2), nil
+	case "int32":
+		num := int32(value.(float64))
+		byteSlice := make([]byte, 4)
+		binary.BigEndian.PutUint32(byteSlice, uint32(num))
+		return byteSlice, uint8(4), nil
+	case "uint32":
+		num := uint32(value.(float64))
+		byteSlice := make([]byte, 4)
+		binary.BigEndian.PutUint32(byteSlice, uint32(num))
+		return byteSlice, uint8(4), nil
+	case "int64":
+		num := int64(value.(float64))
+		byteSlice := make([]byte, 8)
+		binary.BigEndian.PutUint64(byteSlice, uint64(num))
+		return byteSlice, uint8(8), nil
+	case "float32":
+		num := float32(value.(float64))
+		byteSlice := make([]byte, 4)
+		binary.BigEndian.PutUint32(byteSlice, uint32(num))
+		return byteSlice, uint8(2), nil
+	case "float64":
+		var buf bytes.Buffer
+		_ = binary.Write(&buf, binary.BigEndian, value.(float64))
+		return buf.Bytes(), uint8(len(buf.Bytes())), nil
+	default:
+		return nil, uint8(0), fmt.Errorf("不支持的数据类型")
+	}
 }
