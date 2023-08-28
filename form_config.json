@@ -152,6 +152,28 @@
                 "type": "string",
                 "required": false
             }
+        },
+        {
+            "type": "select",
+            "dataKey": "DataType",
+            "required": true,
+            "label": "字节序",
+            "options": [
+                {
+                    "label": "大端",
+                    "value": "0"
+                },
+                {
+                    "label": "小端",
+                    "value": "1"
+                }
+            ],
+            "placeholder": "请选择传输字节序",
+            "validate": {
+                "type": "string",
+                "required": true,
+                "message": "字节序不能为空"
+            }
         }
     ]
 }

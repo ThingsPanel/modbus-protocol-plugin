@@ -1,6 +1,10 @@
 package server_map
 
-import "github.com/tbrandon/mbserver"
+import (
+	"encoding/binary"
+
+	"github.com/tbrandon/mbserver"
+)
 
 type Device struct {
 	GatewayId       string //网关设备id
@@ -15,6 +19,22 @@ type Device struct {
 	DataType        string //数据类型（3和6功能码的数据类型：int16-2 uint16-2 int32-4 uint32-4 int64-8（一个地址2字节））；uint64在转换中会丢失精度，uint32在转float时候某些值也会丢失精度
 	Equation        string
 	Precision       string
+	ByteOrder       string //字节序 0:大端 1:小端
+}
+
+//大小端数据字节编码
+func (d Device) EncodeValueType() binary.ByteOrder {
+
+	switch d.ByteOrder {
+	case "0":
+		return binary.BigEndian
+	case "1":
+		return binary.LittleEndian
+	default:
+		// 默认使用大端序
+		return binary.BigEndian
+	}
+
 }
 
 type Gateway struct {
