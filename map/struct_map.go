@@ -41,7 +41,7 @@ type Gateway struct {
 	Id           string   //网关设备id
 	ProtocolType string   //modbus协议类型：RTU TCP
 	AccessToken  string   //网关设备token
-	SubDevice    []Device //子设备
+	SubDevices   []Device //子设备
 }
 type GatewayData struct {
 	Code    int     `json:"code"`

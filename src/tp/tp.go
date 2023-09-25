@@ -54,7 +54,7 @@ func GetGatewayConfig(AccessToken string) (server_map.Gateway, error) {
 		return gateway_data.Data, json_error
 	}
 	server_map.GatewayConfigMap[gateway_data.Data.Id] = gateway_data.Data
-	for _, subDeviceConfig := range gateway_data.Data.SubDevice {
+	for _, subDeviceConfig := range gateway_data.Data.SubDevices {
 		// 将网关id存入子设备属性中
 		subDeviceConfig.GatewayId = gateway_data.Data.Id
 		server_map.SubDeviceConfigMap[subDeviceConfig.DeviceId] = subDeviceConfig
@@ -65,12 +65,13 @@ func GetGatewayConfig(AccessToken string) (server_map.Gateway, error) {
 // 客户端链接成功后启动携程
 func ProcessReq(accessToken string) {
 	gatewayConfig := server_map.GatewayConfigMap[accessToken]
+	log.Println("================", gatewayConfig)
 	if gatewayConfig.ProtocolType == "MODBUS_RTU" {
-		for _, deviceConfig := range gatewayConfig.SubDevice {
+		for _, deviceConfig := range gatewayConfig.SubDevices {
 			go modbus_rtu.InitRTUGo(gatewayConfig.Id, deviceConfig.DeviceId)
 		}
 	} else if gatewayConfig.ProtocolType == "MODBUS_TCP" {
-		for _, deviceConfig := range gatewayConfig.SubDevice {
+		for _, deviceConfig := range gatewayConfig.SubDevices {
 			go modbus_rtu.InitTCPGo(gatewayConfig.Id, deviceConfig.DeviceId)
 		}
 	}
