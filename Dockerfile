@@ -10,7 +10,7 @@ ENV MODBUS_MQTT_QOS=0
 RUN go build
 EXPOSE 502
 EXPOSE 503
-RUN chmod +x tp-modbus
+RUN chmod +x modbus-protocol-plugin
 RUN pwd
 RUN ls -lrt
 ENTRYPOINT [ "./modbus-protocol-plugin" ]
