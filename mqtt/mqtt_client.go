@@ -22,7 +22,7 @@ var MqttClient *tpprotocolsdkgo.MQTTClient
 func InitClient() {
 	log.Println("创建mqtt客户端")
 	// 创建新的MQTT客户端实例
-	addr := viper.GetString("mqtt.address")
+	addr := viper.GetString("mqtt.broker")
 	username := viper.GetString("mqtt.username")
 	password := viper.GetString("mqtt.password")
 	client := tpprotocolsdkgo.NewMQTTClient(addr, username, password)
