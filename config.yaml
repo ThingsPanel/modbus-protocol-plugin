@@ -5,15 +5,15 @@ mqtt:
   broker: 127.0.0.1:1883 #mqtt服务端地址
   username: root
   password: root
-  topic_to_publish: device/attributes #发送主题
+  topic_to_publish: gateway/attributes #发送主题
   topic_to_subscribe: plugin/modbus/#
   status_topic: device/status
-  subscribe_pool: 100 #客户端订阅处理并发池
+  qos: 0 #qos
 
 http_server:
   address: 0.0.0.0:503 #http服务地址
 
 thingspanel:
-  address: 127.0.0.1:9999 #thingspanel服务地址
+  address: http://127.0.0.1:9999 #thingspanel服务地址
 
 
