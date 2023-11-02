@@ -62,7 +62,7 @@
                     "type": "input",
                     "dataKey": "StartingAddress",
                     "label": "起始地址",
-                    "placeholder": "请输入起始地址",
+                    "placeholder": "请输入起始地址(十进制)",
                     "validate": {
                         "type": "number",
                         "rules": "/^\\d{1,}$/",
