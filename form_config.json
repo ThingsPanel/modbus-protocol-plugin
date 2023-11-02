@@ -130,19 +130,19 @@
                 {
                     "type": "input",
                     "dataKey": "DataIdentifierListStr",
-                    "label": "设备字段（多别名用英文,隔开）",
-                    "placeholder": "请输入属性别名（别名数量=地址/数据类型的地址或线圈数量）",
+                    "label": "设备字段（多字段用英文,隔开）",
+                    "placeholder": "请输入设备字段（字段数量=地址/数据类型的地址或线圈数量）",
                     "validate": {
                         "type": "string",
                         "required": true,
-                        "message": "属性别名不能为空"
+                        "message": "设备字段不能为空"
                     }
                 },
                 {
                     "type": "input",
                     "dataKey": "EquationListStr",
                     "label": "公式处理",
-                    "placeholder": "例:x*1;只填一个公式代表数组的值通用，否则公式用英文,隔开",
+                    "placeholder": "例如设备字段是temp:temp*0.01;多个字段（公式可跨字段）的处理公式用英文,隔开",
                     "validate": {
                         "type": "string",
                         "required": false
