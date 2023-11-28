@@ -43,14 +43,14 @@ func (t *TCPCommand) Serialize() ([]byte, error) {
 	}
 
 	// 设置长度字段，长度字段是后续的字节数，包括单元标识符和数据
-	t.Length = uint16(len(data) + 1) // +1 是因为单元标识符的大小
+	t.Length = uint16(len(data))
 
 	// 创建一个新的buffer来包含TCP Modbus头和数据
 	var buf bytes.Buffer
 	binary.Write(&buf, binary.BigEndian, t.TransactionID)
 	binary.Write(&buf, binary.BigEndian, t.ProtocolID)
 	binary.Write(&buf, binary.BigEndian, t.Length)
-	buf.WriteByte(t.SlaveAddress) // 写入单元标识符
+	// buf.WriteByte(t.SlaveAddress) // 写入单元标识符
 	buf.Write(data)
 
 	// 将序列化后的结果赋值给t.Data
@@ -59,7 +59,7 @@ func (t *TCPCommand) Serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-const MBAPHeaderLength = 7 // MBAP Header length for Modbus TCP
+const MBAPHeaderLength = 6 // MBAP Header length for Modbus TCP
 
 // 解析Modbus TCP返回的数据并提取数据部分
 func (r *TCPCommand) ParseTCPResponse(resp []byte) ([]byte, error) {
