@@ -149,6 +149,20 @@ func OnGetForm(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm() //解析参数，默认是不会解析的
 	log.Println("【收到api请求】path", r.URL.Path)
 	log.Println("scheme", r.URL.Scheme)
+
+	// 如果query里的请求参数device_type等于2，返回空
+	if r.URL.Query().Get("device_type") == "2" {
+		var rspdata = make(map[string]interface{})
+		w.Header().Set("Content-Type", "application/json")
+		rspdata["code"] = 200
+		rspdata["message"] = "success"
+		data, err := json.Marshal(rspdata)
+		if err != nil {
+			log.Println(err.Error())
+		}
+		fmt.Fprint(w, string(data))
+		return
+	}
 	var rsp = make(map[string]interface{})
 	rsp["data"] = readFormConfig()
 	data, err := json.Marshal(rsp)
