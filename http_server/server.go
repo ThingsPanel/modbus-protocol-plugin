@@ -150,7 +150,7 @@ func OnGetForm(w http.ResponseWriter, r *http.Request) {
 	log.Println("【收到api请求】path", r.URL.Path)
 	log.Println("scheme", r.URL.Scheme)
 	// 如果请求参数device_type等于2，返回空
-	if r.URL.Query()["protocol_type"][0] == "2" {
+	if r.URL.Query()["device_type"][0] == "2" {
 		var rspdata = make(map[string]interface{})
 		w.Header().Set("Content-Type", "application/json")
 		rspdata["code"] = 200
