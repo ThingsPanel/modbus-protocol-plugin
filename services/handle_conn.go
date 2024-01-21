@@ -25,7 +25,8 @@ import (
 func HandleConn(token string) {
 
 	// 获取网关配置
-	gatewayConfig := globaldata.GateWayConfigMap[token]
+	m, _ := globaldata.GateWayConfigMap.Load(token)
+	gatewayConfig := m.(*api.DeviceConfigResponseData)
 	// 遍历网关的子设备
 	for _, tpSubDevice := range gatewayConfig.SubDevices {
 		// 将tp子设备的表单配置转SubDeviceFormConfig
@@ -75,11 +76,12 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 		return
 	}
 
-	gatewayConn, exists := globaldata.DeviceConnectionMap[token]
+	m, exists := globaldata.DeviceConnectionMap.Load(token)
 	if !exists {
 		log.Println("No connection found for token:", token)
 		return
 	}
+	gatewayConn := m.(*net.Conn)
 	conn := *gatewayConn
 	defer CloseConnection(conn, token)
 
@@ -100,15 +102,10 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 	}
 }
 func sendDataAndReadResponse(conn net.Conn, data, buf []byte, token string) (int, error) {
-	err := globaldata.GetMutex(token)
-	if err != nil {
-		return 0, err
-	}
-	defer globaldata.ReleaseMutex(token)
 	log.Println("AccessToken:", token, "请求：", data)
 
 	// 设置写超时时间
-	err = conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
+	err := conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
 	if err != nil {
 		log.Println("SetWriteDeadline() failed, err: ", err)
 		return 0, err
@@ -177,11 +174,12 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 		return
 	}
 
-	gatewayConn, exists := globaldata.DeviceConnectionMap[token]
+	m, exists := globaldata.DeviceConnectionMap.Load(token)
 	if !exists {
 		log.Println("No connection found for token:", token)
 		return
 	}
+	gatewayConn := m.(*net.Conn)
 	conn := *gatewayConn
 	defer CloseConnection(conn, token)
 

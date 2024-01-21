@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 
@@ -179,24 +180,17 @@ func updateGatewayConfig(gateWayID string) error {
 		return err
 	}
 	log.Println("网关配置：", gatewayConfig.Data)
-	// 获取锁
-	mutex, ok := globaldata.GateWayMutexMap[gatewayConfig.Data.AccessToken]
-	if !ok {
-		return errors.New("Mutex not found for token:" + gatewayConfig.Data.AccessToken)
-	}
-	mutex.Lock()
-	defer mutex.Unlock()
 	// 获取连接
-	conn := globaldata.DeviceConnectionMap[gatewayConfig.Data.AccessToken]
-	if conn == nil {
-		return errors.New("Connection not found for token:" + gatewayConfig.Data.AccessToken)
-	} else {
-		c := *conn
+	conn, ok := globaldata.DeviceConnectionMap.Load(gatewayConfig.Data.AccessToken)
+	if ok {
+		c := *conn.(*net.Conn)
 		// 如果本身是关闭的也无所谓，它会在读和写的时候返回错误
 		service.CloseConnection(c, gatewayConfig.Data.AccessToken)
+	} else {
+		return errors.New("Connection not found for token:" + gatewayConfig.Data.AccessToken)
 	}
 	// 更换配置
-	globaldata.GateWayConfigMap[gatewayConfig.Data.AccessToken] = &gatewayConfig.Data
+	globaldata.GateWayConfigMap.Store(gatewayConfig.Data.AccessToken, &gatewayConfig.Data)
 	// 将设备连接存入全局变量
 	services.HandleConn(gatewayConfig.Data.AccessToken) // 处理连接
 	return nil

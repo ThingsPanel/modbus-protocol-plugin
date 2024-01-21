@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"strings"
 	"time"
 
@@ -77,11 +78,11 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 		var gateWayConfigMap *api.DeviceConfigResponseData
 		// 获取网关配置
 		log.Println("token:", token)
-		if m, exists := globaldata.GateWayConfigMap[token]; !exists {
+		if m, exists := globaldata.GateWayConfigMap.Load(token); !exists {
 			log.Println("网关没有连接")
 			return
 		} else {
-			gateWayConfigMap = m
+			gateWayConfigMap = m.(*api.DeviceConfigResponseData)
 		}
 		// 遍历subDevices
 		for _, subDevice := range gateWayConfigMap.SubDevices {
@@ -121,7 +122,7 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 										return
 									}
 									// 反序列化数据
-								} else if globaldata.GateWayConfigMap[token].ProtocolType == "MODBUS_TCP" {
+								} else if m, ok := globaldata.GateWayConfigMap.Load(token); ok && m.(*api.DeviceConfigResponseData).ProtocolType == "MODBUS_TCP" {
 									// 创建TCPCommand
 									TCPCommand := modbus.NewTCPCommand(subDeviceFormConfig.SlaveID, functionCode, startAddress, 1, modbus.EndianessType(commandRaw.Endianess))
 									TCPCommand.ValueData = data
@@ -148,20 +149,14 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 // 处理设备连接
 func handleDeviceConnection(token string, sendData []byte) error {
 	// 获取连接
-	c, exists := globaldata.DeviceConnectionMap[token]
+	c, exists := globaldata.DeviceConnectionMap.Load(token)
 	if !exists {
 		return fmt.Errorf("网关没有连接")
 	}
-	conn := *c
-	// 获取锁
-	err := globaldata.GetMutex(token)
-	if err != nil {
-		return err
-	}
-	defer globaldata.ReleaseMutex(token)
+	conn := *c.(*net.Conn)
 
 	// 设置写超时时间
-	err = conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
+	err := conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
 	if err != nil {
 		log.Println("SetWriteDeadline() failed, err: ", err)
 		return err

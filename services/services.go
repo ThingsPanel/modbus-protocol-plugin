@@ -3,7 +3,6 @@ package services
 import (
 	"log"
 	"net"
-	"sync"
 
 	httpclient "github.com/ThingsPanel/modbus-protocol-plugin/http_client"
 
@@ -57,9 +56,9 @@ func CloseConnection(conn net.Conn, token string) {
 		log.Println("Close() failed, err: ", err)
 	}
 	// 删除全局变量
-	if _, exists := globaldata.DeviceConnectionMap[token]; !exists {
+	if m, exists := globaldata.DeviceConnectionMap.Load(token); !exists {
 		return
-	} else if conn != *globaldata.DeviceConnectionMap[token] {
+	} else if conn != *m.(*net.Conn) {
 		return
 	}
 	log.Println("删除全局变量完成：", token)
@@ -69,9 +68,8 @@ func CloseConnection(conn net.Conn, token string) {
 	if err != nil {
 		log.Println("SendStatus() failed, err: ", err)
 	}
-	delete(globaldata.GateWayConfigMap, token)
-	delete(globaldata.DeviceConnectionMap, token)
-	delete(globaldata.GateWayMutexMap, token)
+	globaldata.GateWayConfigMap.Delete(token)
+	globaldata.DeviceConnectionMap.Delete(token)
 	// 设备离线
 	log.Println("设备离线：", token)
 }
@@ -98,11 +96,9 @@ func verifyConnection(conn net.Conn) {
 	}
 	log.Println("获取设备配置成功：", tpGatewayConfig)
 	// 将平台网关的配置存入全局变量
-	globaldata.GateWayConfigMap[accessToken] = &tpGatewayConfig.Data
+	globaldata.GateWayConfigMap.Store(accessToken, &tpGatewayConfig.Data)
 	// 将设备连接存入全局变量
-	globaldata.DeviceConnectionMap[accessToken] = &conn
-	// 设置锁
-	globaldata.GateWayMutexMap[accessToken] = &sync.Mutex{}
+	globaldata.DeviceConnectionMap.Store(accessToken, &conn)
 	m := *MQTT.MqttClient
 	err = m.SendStatus(accessToken, "1")
 	if err != nil {
