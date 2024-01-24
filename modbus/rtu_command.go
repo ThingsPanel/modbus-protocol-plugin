@@ -58,12 +58,12 @@ func (r *RTUCommand) ParseAndValidateResponse(resp []byte) ([]byte, error) {
 	if len(resp) < 3 { // minimal Modbus RTU frame size (1 addr + 1 function + 2 crc)
 		return nil, errors.New("response too short")
 	}
-
-	//检查读取的数据与预设的数据长度不符合则丢弃
-	if len(resp) != int(r.Quantity)+3 {
-		return nil, fmt.Errorf("response length mismatch: expected %d but got %d", int(resp[2])+3, len(resp))
+	if r.FunctionCode == 0x03 || r.FunctionCode == 0x04 || r.FunctionCode == 0x06 {
+		//检查读取的数据与预设的数据长度不符合则丢弃
+		if len(resp) != int(2*r.Quantity)+5 {
+			return nil, fmt.Errorf("response length mismatch: expected %d but got %d", int(2*r.Quantity)+5, len(resp))
+		}
 	}
-
 	// CRC 校验值在 Modbus RTU 中始终是小端格式
 	receivedCRC := binary.LittleEndian.Uint16(resp[len(resp)-2:])
 

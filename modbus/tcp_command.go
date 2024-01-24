@@ -68,8 +68,11 @@ func (r *TCPCommand) ParseTCPResponse(resp []byte) ([]byte, error) {
 	}
 
 	//检查读取的数据不等于数据长度则丢弃
-	if len(resp) != int(r.Length)+MBAPHeaderLength {
-		return nil, fmt.Errorf("response length mismatch: expected %d bytes but received %d bytes", r.Length, len(resp)-MBAPHeaderLength)
+	if r.FunctionCode == 0x03 || r.FunctionCode == 0x04 || r.FunctionCode == 0x06 {
+		//检查读取的数据与预设的数据长度不符合则丢弃
+		if len(resp) != int(2*r.Quantity)+5 {
+			return nil, fmt.Errorf("response length mismatch: expected %d but got %d", int(2*r.Quantity)+5, len(resp))
+		}
 	}
 	// Extracting MBAP fields from the response
 	r.TransactionID = binary.BigEndian.Uint16(resp[0:2])
