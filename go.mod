@@ -2,7 +2,7 @@ module github.com/ThingsPanel/modbus-protocol-plugin
 
 go 1.18
 
-require github.com/ThingsPanel/tp-protocol-sdk-go v1.0.5
+require github.com/ThingsPanel/tp-protocol-sdk-go v1.1.0
 
 require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect

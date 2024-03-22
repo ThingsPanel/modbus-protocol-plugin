@@ -1,0 +1,13 @@
+[
+    {
+        "dataKey": "reg_pkg",
+        "label": "Registration Package",
+        "placeholder": "please input the registration package",
+        "type": "input",
+        "validate": {
+            "message": "The Registration Package cannot be empty",
+            "required": true,
+            "type": "string"
+        }
+    }
+]
