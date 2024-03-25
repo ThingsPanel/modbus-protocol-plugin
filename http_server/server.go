@@ -171,7 +171,7 @@ func OnGetForm(w http.ResponseWriter, r *http.Request) {
 	case "VCR":
 		if device_type == "2" {
 			// 网关凭证表单
-			RspSuccess(w, nil)
+			RspSuccess(w, readFormConfigByPath("./form_voucher.json"))
 		} else {
 			RspSuccess(w, nil)
 		}
