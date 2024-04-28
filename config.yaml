@@ -16,4 +16,6 @@ http_server:
 thingspanel:
   address: http://127.0.0.1:9999 #thingspanel服务地址
 
-
+log: 
+  # 日志级别 debug, info, warn, error, fatal, panic
+  level: debug

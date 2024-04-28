@@ -1,10 +1,10 @@
 package services
 
 import (
-	"log"
 	"net"
 
 	httpclient "github.com/ThingsPanel/modbus-protocol-plugin/http_client"
+	"github.com/sirupsen/logrus"
 
 	globaldata "github.com/ThingsPanel/modbus-protocol-plugin/global_data"
 	MQTT "github.com/ThingsPanel/modbus-protocol-plugin/mqtt"
@@ -26,14 +26,14 @@ func startServer() {
 	serverAddr := viper.GetString("server.address")
 	listen, err := net.Listen("tcp", serverAddr)
 	if err != nil {
-		log.Println("Listen() failed, err: ", err)
+		logrus.Info("Listen() failed, err: ", err)
 		return
 	}
-	log.Println("modbus服务启动成功：", serverAddr)
+	logrus.Info("modbus服务启动成功：", serverAddr)
 	for {
 		conn, err := listen.Accept() // 监听客户端的连接请求
 		if err != nil {
-			log.Println("Accept() failed, err: ", err)
+			logrus.Info("Accept() failed, err: ", err)
 			continue
 		}
 
@@ -53,7 +53,7 @@ func handleChanConnections() {
 func CloseConnection(conn net.Conn, token string) {
 	err := conn.Close()
 	if err != nil {
-		log.Println("Close() failed, err: ", err)
+		logrus.Info("Close() failed, err: ", err)
 	}
 	// 删除全局变量
 	if m, exists := globaldata.DeviceConnectionMap.Load(token); !exists {
@@ -61,17 +61,17 @@ func CloseConnection(conn net.Conn, token string) {
 	} else if conn != *m.(*net.Conn) {
 		return
 	}
-	log.Println("删除全局变量完成：", token)
+	logrus.Info("删除全局变量完成：", token)
 	// 做其他事情，比如发送离线消息
 	m := *MQTT.MqttClient
 	err = m.SendStatus(token, "0")
 	if err != nil {
-		log.Println("SendStatus() failed, err: ", err)
+		logrus.Info("SendStatus() failed, err: ", err)
 	}
 	globaldata.GateWayConfigMap.Delete(token)
 	globaldata.DeviceConnectionMap.Delete(token)
 	// 设备离线
-	log.Println("设备离线：", token)
+	logrus.Info("设备离线：", token)
 }
 
 // 验证连接并继续处理数据
@@ -80,32 +80,35 @@ func verifyConnection(conn net.Conn) {
 	var buf [1024]byte
 	n, err := conn.Read(buf[:])
 	if err != nil {
-		log.Println("Read() failed, err: ", err)
+		logrus.Info("Read() failed, err: ", err)
 		conn.Close()
 		return
 	}
-	accessToken := string(buf[:n])
-	log.Println("收到客户端发来的数据：", accessToken)
-	// 首次接收到的是设备token，需要根据token获取设备配置
+	regPkg := string(buf[:n])
+	logrus.Info("收到客户端发来的注册包：", regPkg)
+	// 首次接收到的是设备regPkg，需要根据regPkg获取设备配置
+	// 凭借voucher
+	voucher := `{"reg_pkg":"` + regPkg + `"}`
 	// 读取设备配置
-	tpGatewayConfig, err := httpclient.GetDeviceConfig(accessToken, "")
+	tpGatewayConfig, err := httpclient.GetDeviceConfig(voucher, "")
 	if err != nil {
 		// 获取设备配置失败，请检查连接包是否正确
-		log.Println("Failed to obtain the device configuration. Please check whether the connection package is correct!", err)
+		logrus.Error(err)
+		conn.Close()
 		return
 	}
-	log.Println("获取设备配置成功：", tpGatewayConfig)
+	logrus.Info("获取设备配置成功：", tpGatewayConfig)
 	// 将平台网关的配置存入全局变量
-	globaldata.GateWayConfigMap.Store(accessToken, &tpGatewayConfig.Data)
+	globaldata.GateWayConfigMap.Store(regPkg, &tpGatewayConfig.Data)
 	// 将设备连接存入全局变量
-	globaldata.DeviceConnectionMap.Store(accessToken, &conn)
+	globaldata.DeviceConnectionMap.Store(regPkg, &conn)
 	m := *MQTT.MqttClient
-	err = m.SendStatus(accessToken, "1")
+	err = m.SendStatus(regPkg, "1")
 	if err != nil {
-		log.Println("SendStatus() failed, err: ", err)
+		logrus.Info("SendStatus() failed, err: ", err)
 	}
 	// 设备上线
-	log.Println("设备上线：", accessToken)
-	HandleConn(accessToken) // 处理连接
+	logrus.Info("设备上线：", regPkg)
+	HandleConn(regPkg) // 处理连接
 	// defer conn.Close()
 }

@@ -3,12 +3,12 @@ package tpconfig
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math"
 	"strconv"
 	"strings"
 
 	"github.com/Knetic/govaluate"
+	"github.com/sirupsen/logrus"
 )
 
 type CommandRaw struct {
@@ -289,7 +289,7 @@ func (c *CommandRaw) Serialize(resp []byte) (map[string]interface{}, error) {
 
 			places, err := strconv.Atoi(strings.TrimSpace(decimalPlacesList[placeIndex]))
 			if err != nil {
-				log.Println("invalid decimal place value for ", id, ": ", err)
+				logrus.Info("invalid decimal place value for ", id, ": ", err)
 				continue
 			}
 
@@ -297,7 +297,7 @@ func (c *CommandRaw) Serialize(resp []byte) (map[string]interface{}, error) {
 			if val, ok := values[id].(float64); ok {
 				values[id] = math.Round(val*multiplier) / multiplier
 			} else {
-				log.Println("value of ", id, " is not float64")
+				logrus.Info("value of ", id, " is not float64")
 				continue
 			}
 		}

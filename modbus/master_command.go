@@ -5,7 +5,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"log"
+
+	"github.com/sirupsen/logrus"
 )
 
 type EndianessType string
@@ -40,7 +41,7 @@ func (c *MasterCommand) Serialize() ([]byte, error) {
 
 	// 写入从站地址
 	buf.WriteByte(c.SlaveAddress)
-	log.Println("----------", c.FunctionCode)
+	logrus.Info("----------", c.FunctionCode)
 	// 根据功能码进行序列化
 	switch c.FunctionCode {
 	case 0x01, 0x02, 0x03, 0x04: // Read Coils, Read Discrete Inputs, Read Holding Registers, Read Input Registers

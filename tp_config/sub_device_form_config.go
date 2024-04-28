@@ -2,7 +2,8 @@ package tpconfig
 
 import (
 	"fmt"
-	"log"
+
+	"github.com/sirupsen/logrus"
 )
 
 type SubDeviceFormConfig struct {
@@ -32,7 +33,7 @@ func NewSubDeviceFormConfig(formConfigMap map[string]interface{}) (*SubDeviceFor
 
 		commandRaw, err := NewCommandRaw(commandRawMap)
 		if err != nil {
-			log.Println("NewCommandRaw error:", err)
+			logrus.Info("NewCommandRaw error:", err)
 			continue
 		}
 		commandRawList = append(commandRawList, commandRaw)

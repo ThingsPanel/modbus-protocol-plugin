@@ -2,7 +2,6 @@ package services
 
 import (
 	"encoding/json"
-	"log"
 	"net"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/ThingsPanel/modbus-protocol-plugin/modbus"
 	MQTT "github.com/ThingsPanel/modbus-protocol-plugin/mqtt"
 	tpconfig "github.com/ThingsPanel/modbus-protocol-plugin/tp_config"
+	"github.com/sirupsen/logrus"
 
 	"github.com/ThingsPanel/tp-protocol-sdk-go/api"
 )
@@ -32,7 +32,7 @@ func HandleConn(token string) {
 		// 将tp子设备的表单配置转SubDeviceFormConfig
 		subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(tpSubDevice.Config)
 		if err != nil {
-			log.Println(err.Error())
+			logrus.Info(err.Error())
 			continue
 		}
 		// 遍历子设备的表单配置
@@ -72,13 +72,13 @@ func HandleConn(token string) {
 func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, token string, tpSubDevice *api.SubDevice) {
 	data, err := RTUCommand.Serialize()
 	if err != nil {
-		log.Println(err.Error())
+		logrus.Info(err.Error())
 		return
 	}
 
 	m, exists := globaldata.DeviceConnectionMap.Load(token)
 	if !exists {
-		log.Println("No connection found for token:", token)
+		logrus.Info("No connection found for token:", token)
 		return
 	}
 	gatewayConn := m.(*net.Conn)
@@ -89,7 +89,7 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 
 	for {
 		if isClose, err := sendRTUDataAndProcessResponse(conn, data, buf, RTUCommand, commandRaw, token, tpSubDevice); err != nil {
-			log.Println("Error processing data:", err.Error())
+			logrus.Info("Error processing data:", err.Error())
 			if isClose {
 				return
 			}
@@ -102,12 +102,12 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 	}
 }
 func sendDataAndReadResponse(conn net.Conn, data, buf []byte, token string) (int, error) {
-	log.Println("AccessToken:", token, "请求：", data)
+	logrus.Info("AccessToken:", token, "请求：", data)
 
 	// 设置写超时时间
 	err := conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
 	if err != nil {
-		log.Println("SetWriteDeadline() failed, err: ", err)
+		logrus.Info("SetWriteDeadline() failed, err: ", err)
 		return 0, err
 	}
 
@@ -119,7 +119,7 @@ func sendDataAndReadResponse(conn net.Conn, data, buf []byte, token string) (int
 	// 设置读取超时时间
 	err = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	if err != nil {
-		log.Println("SetReadDeadline() failed, err: ", err)
+		logrus.Info("SetReadDeadline() failed, err: ", err)
 		return 0, err
 	}
 
@@ -136,7 +136,7 @@ func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *
 		return true, err
 	}
 
-	log.Println("AccessToken:", token, "返回：", buf[:n])
+	logrus.Info("AccessToken:", token, "返回：", buf[:n])
 	respData, err := RTUCommand.ParseAndValidateResponse(buf[:n])
 	if err != nil {
 		return false, err
@@ -170,13 +170,13 @@ func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *
 func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, token string, tpSubDevice *api.SubDevice) {
 	data, err := TCPCommand.Serialize()
 	if err != nil {
-		log.Println("Error serializing TCPCommand:", err)
+		logrus.Info("Error serializing TCPCommand:", err)
 		return
 	}
 
 	m, exists := globaldata.DeviceConnectionMap.Load(token)
 	if !exists {
-		log.Println("No connection found for token:", token)
+		logrus.Info("No connection found for token:", token)
 		return
 	}
 	gatewayConn := m.(*net.Conn)
@@ -187,7 +187,7 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 
 	for {
 		if isClose, err := sendTCPDataAndProcessResponse(conn, data, buf, TCPCommand, commandRaw, token, tpSubDevice); err != nil {
-			log.Println("Error processing data:", err.Error())
+			logrus.Info("Error processing data:", err.Error())
 			if isClose {
 				return
 			}

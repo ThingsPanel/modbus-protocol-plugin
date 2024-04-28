@@ -15,6 +15,7 @@ import (
 func main() {
 	conf()
 	log.Println("Starting the application...")
+	LogInIt()
 	// 启动mqtt客户端
 	mqtt.InitClient()
 	// 启动http客户端

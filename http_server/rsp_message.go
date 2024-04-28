@@ -3,8 +3,9 @@ package httpserver
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/sirupsen/logrus"
 )
 
 // 返回错误信息
@@ -15,7 +16,7 @@ func RspError(w http.ResponseWriter, err error) {
 	rspdata["message"] = err.Error()
 	data, err := json.Marshal(rspdata)
 	if err != nil {
-		log.Println(err.Error())
+		logrus.Info(err.Error())
 	}
 	fmt.Fprint(w, string(data))
 }
@@ -29,7 +30,7 @@ func RspSuccess(w http.ResponseWriter, d interface{}) {
 	rspdata["data"] = d
 	data, err := json.Marshal(rspdata)
 	if err != nil {
-		log.Println(err.Error())
+		logrus.Info(err.Error())
 	}
 	fmt.Fprint(w, string(data))
 }
