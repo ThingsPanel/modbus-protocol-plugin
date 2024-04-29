@@ -99,16 +99,16 @@ func verifyConnection(conn net.Conn) {
 	}
 	logrus.Info("获取设备配置成功：", tpGatewayConfig)
 	// 将平台网关的配置存入全局变量
-	globaldata.GateWayConfigMap.Store(regPkg, &tpGatewayConfig.Data)
+	globaldata.GateWayConfigMap.Store(tpGatewayConfig.Data.ID, &tpGatewayConfig.Data)
 	// 将设备连接存入全局变量
-	globaldata.DeviceConnectionMap.Store(regPkg, &conn)
+	globaldata.DeviceConnectionMap.Store(tpGatewayConfig.Data.ID, &conn)
 	m := *MQTT.MqttClient
-	err = m.SendStatus(regPkg, "1")
+	err = m.SendStatus(tpGatewayConfig.Data.ID, "1")
 	if err != nil {
 		logrus.Info("SendStatus() failed, err: ", err)
 	}
 	// 设备上线
 	logrus.Info("设备上线：", regPkg)
-	HandleConn(regPkg) // 处理连接
+	HandleConn(regPkg, tpGatewayConfig.Data.ID) // 处理连接
 	// defer conn.Close()
 }

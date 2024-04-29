@@ -22,13 +22,17 @@ import (
 */
 
 // HandleConn 处理单个连接
-func HandleConn(regPkg string) {
+func HandleConn(regPkg, deviceID string) {
 
 	// 获取网关配置
-	m, _ := globaldata.GateWayConfigMap.Load(regPkg)
+	m, _ := globaldata.GateWayConfigMap.Load(deviceID)
 	gatewayConfig := m.(*api.DeviceConfigResponseData)
 	// 遍历网关的子设备
 	for _, tpSubDevice := range gatewayConfig.SubDevices {
+		// 存储子设备配置
+		globaldata.SubDeviceConfigMap.Store(tpSubDevice.DeviceID, &tpSubDevice)
+		// 存储子设备id和网关id的映射关系
+		globaldata.SubDeviceIDAndGateWayIDMap.Store(tpSubDevice.DeviceID, deviceID)
 		// 将tp子设备的表单配置转SubDeviceFormConfig
 		subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(tpSubDevice.ProtocolConfigTemplate)
 		if err != nil {
@@ -50,7 +54,7 @@ func HandleConn(regPkg string) {
 				}
 				// 创建RTUCommand
 				RTUCommand := modbus.NewRTUCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, endianess)
-				go handleRTUCommand(&RTUCommand, commandRaw, regPkg, &tpSubDevice)
+				go handleRTUCommand(&RTUCommand, commandRaw, regPkg, &tpSubDevice, deviceID)
 
 			} else if gatewayConfig.ProtocolType == "MODBUS_TCP" {
 				if commandRaw.Endianess == "BIG" {
@@ -63,32 +67,32 @@ func HandleConn(regPkg string) {
 				}
 				// 创建TCPCommand
 				TCPCommand := modbus.NewTCPCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, endianess)
-				go handleTCPCommand(&TCPCommand, commandRaw, regPkg, &tpSubDevice)
+				go handleTCPCommand(&TCPCommand, commandRaw, regPkg, &tpSubDevice, deviceID)
 			}
 		}
 	}
 }
 
-func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, token string, tpSubDevice *api.SubDevice) {
+func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice, deviceID string) {
 	data, err := RTUCommand.Serialize()
 	if err != nil {
 		logrus.Info(err.Error())
 		return
 	}
 
-	m, exists := globaldata.DeviceConnectionMap.Load(token)
+	m, exists := globaldata.DeviceConnectionMap.Load(deviceID)
 	if !exists {
-		logrus.Info("No connection found for token:", token)
+		logrus.Info("No connection found for regPkg:", regPkg, " deviceID:", deviceID)
 		return
 	}
 	gatewayConn := m.(*net.Conn)
 	conn := *gatewayConn
-	defer CloseConnection(conn, token)
+	defer CloseConnection(conn, deviceID)
 
 	buf := make([]byte, 1024)
 
 	for {
-		if isClose, err := sendRTUDataAndProcessResponse(conn, data, buf, RTUCommand, commandRaw, token, tpSubDevice); err != nil {
+		if isClose, err := sendRTUDataAndProcessResponse(conn, data, buf, RTUCommand, commandRaw, regPkg, tpSubDevice, deviceID); err != nil {
 			logrus.Info("Error processing data:", err.Error())
 			if isClose {
 				return
@@ -132,13 +136,13 @@ func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (in
 	return n, nil
 }
 
-func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, token string, tpSubDevice *api.SubDevice) (bool, error) {
-	n, err := sendDataAndReadResponse(conn, data, buf, token)
+func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice, deviceID string) (bool, error) {
+	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
 	if err != nil {
 		return true, err
 	}
 
-	logrus.Info("AccessToken:", token, "返回：", buf[:n])
+	logrus.Info("regPkg:", regPkg, "返回：", buf[:n])
 	respData, err := RTUCommand.ParseAndValidateResponse(buf[:n])
 	if err != nil {
 		return false, err
@@ -150,8 +154,8 @@ func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *
 	}
 
 	payloadMap := map[string]interface{}{
-		"token":  token,
-		"values": map[string]interface{}{tpSubDevice.SubDeviceAddr: dataMap},
+		"device_id": deviceID,
+		"values":    dataMap,
 	}
 	var values []byte
 	// 将payloadMap.values 转为json字符串
@@ -169,26 +173,26 @@ func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *
 }
 
 // handleTCPCommand 处理TCPCommand
-func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, token string, tpSubDevice *api.SubDevice) {
+func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice, deviceID string) {
 	data, err := TCPCommand.Serialize()
 	if err != nil {
 		logrus.Info("Error serializing TCPCommand:", err)
 		return
 	}
 
-	m, exists := globaldata.DeviceConnectionMap.Load(token)
+	m, exists := globaldata.DeviceConnectionMap.Load(deviceID)
 	if !exists {
-		logrus.Info("No connection found for token:", token)
+		logrus.Info("No connection found for regPkg:", regPkg, " deviceID:", deviceID)
 		return
 	}
 	gatewayConn := m.(*net.Conn)
 	conn := *gatewayConn
-	defer CloseConnection(conn, token)
+	defer CloseConnection(conn, deviceID)
 
 	buf := make([]byte, 1024)
 
 	for {
-		if isClose, err := sendTCPDataAndProcessResponse(conn, data, buf, TCPCommand, commandRaw, token, tpSubDevice); err != nil {
+		if isClose, err := sendTCPDataAndProcessResponse(conn, data, buf, TCPCommand, commandRaw, regPkg, tpSubDevice, deviceID); err != nil {
 			if isClose {
 				return
 			}
@@ -197,7 +201,7 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 	}
 }
 
-func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
+func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice, deviceID string) (bool, error) {
 
 	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
 
@@ -214,7 +218,7 @@ func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *
 	}
 
 	payloadMap := map[string]interface{}{
-		"device_id": tpSubDevice.DeviceID,
+		"device_id": deviceID,
 		//"values": map[string]interface{}{tpSubDevice.SubDeviceAddr: dataMap},
 		"values": dataMap,
 	}

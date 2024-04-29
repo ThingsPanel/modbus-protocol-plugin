@@ -2,11 +2,18 @@ package globaldata
 
 import (
 	"sync"
+
+	"github.com/ThingsPanel/tp-protocol-sdk-go/api"
+	"github.com/sirupsen/logrus"
 )
 
 // 平台网关配置map, key是网关的token，value是网关的配置
 // var GateWayConfigMap = make(map[string]*api.DeviceConfigResponseData)
 var GateWayConfigMap sync.Map
+
+var SubDeviceConfigMap sync.Map
+
+var SubDeviceIDAndGateWayIDMap sync.Map
 
 // 设备连接map, key是设备的token，value是设备的连接
 // var DeviceConnectionMap = make(map[string]*net.Conn)
@@ -31,4 +38,20 @@ func GetModbusErrorDesc(code byte) string {
 		return desc
 	}
 	return "Unknown error:未知错误"
+}
+
+// 通过子设备ID获取网关配置
+func GetGateWayConfigByDeviceID(subDeviceID string) (*api.DeviceConfigResponseData, bool) {
+	if gateWayID, ok := SubDeviceIDAndGateWayIDMap.Load(subDeviceID); ok {
+		if gateWayConfig, ok := GateWayConfigMap.Load(gateWayID); ok {
+			return gateWayConfig.(*api.DeviceConfigResponseData), true
+		} else {
+			logrus.Error("通过网关ID获取网关配置失败")
+			return nil, false
+		}
+	} else {
+		logrus.Error("通过子设备ID获取网关ID失败")
+		return nil, false
+	}
+	return nil, false
 }

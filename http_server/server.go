@@ -208,7 +208,7 @@ func updateGatewayConfig(gateWayID string) error {
 	// 更换配置
 	globaldata.GateWayConfigMap.Store(gatewayConfig.Data.Voucher, &gatewayConfig.Data)
 	// 将设备连接存入全局变量
-	services.HandleConn(gatewayConfig.Data.Voucher) // 处理连接
+	services.HandleConn(gatewayConfig.Data.Voucher, gatewayConfig.Data.ID) // 处理连接
 	return nil
 }
 
