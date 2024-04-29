@@ -22,15 +22,15 @@ import (
 */
 
 // HandleConn 处理单个连接
-func HandleConn(token string) {
+func HandleConn(regPkg string) {
 
 	// 获取网关配置
-	m, _ := globaldata.GateWayConfigMap.Load(token)
+	m, _ := globaldata.GateWayConfigMap.Load(regPkg)
 	gatewayConfig := m.(*api.DeviceConfigResponseData)
 	// 遍历网关的子设备
 	for _, tpSubDevice := range gatewayConfig.SubDevices {
 		// 将tp子设备的表单配置转SubDeviceFormConfig
-		subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(tpSubDevice.Config)
+		subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(tpSubDevice.ProtocolConfigTemplate)
 		if err != nil {
 			logrus.Info(err.Error())
 			continue
@@ -50,7 +50,7 @@ func HandleConn(token string) {
 				}
 				// 创建RTUCommand
 				RTUCommand := modbus.NewRTUCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, endianess)
-				go handleRTUCommand(&RTUCommand, commandRaw, token, &tpSubDevice)
+				go handleRTUCommand(&RTUCommand, commandRaw, regPkg, &tpSubDevice)
 
 			} else if gatewayConfig.ProtocolType == "MODBUS_TCP" {
 				if commandRaw.Endianess == "BIG" {
@@ -63,7 +63,7 @@ func HandleConn(token string) {
 				}
 				// 创建TCPCommand
 				TCPCommand := modbus.NewTCPCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, endianess)
-				go handleTCPCommand(&TCPCommand, commandRaw, token, &tpSubDevice)
+				go handleTCPCommand(&TCPCommand, commandRaw, regPkg, &tpSubDevice)
 			}
 		}
 	}
@@ -101,8 +101,8 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 		time.Sleep(time.Duration(commandRaw.Interval) * time.Second)
 	}
 }
-func sendDataAndReadResponse(conn net.Conn, data, buf []byte, token string) (int, error) {
-	logrus.Info("AccessToken:", token, "请求：", data)
+func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (int, error) {
+	logrus.Info("regPkg:", regPkg, " 请求：", data)
 
 	// 设置写超时时间
 	err := conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
@@ -125,8 +125,10 @@ func sendDataAndReadResponse(conn net.Conn, data, buf []byte, token string) (int
 
 	n, err := conn.Read(buf)
 	if err != nil {
+		logrus.Warn("Read() failed, err: ", err)
 		return n, err
 	}
+	logrus.Info("regPkg:", regPkg, " 返回：", buf[:n])
 	return n, nil
 }
 
@@ -187,7 +189,6 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 
 	for {
 		if isClose, err := sendTCPDataAndProcessResponse(conn, data, buf, TCPCommand, commandRaw, token, tpSubDevice); err != nil {
-			logrus.Info("Error processing data:", err.Error())
 			if isClose {
 				return
 			}
@@ -196,8 +197,10 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 	}
 }
 
-func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, token string, tpSubDevice *api.SubDevice) (bool, error) {
-	n, err := sendDataAndReadResponse(conn, data, buf, token)
+func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
+
+	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
+
 	if err != nil {
 		return true, err
 	}
@@ -205,15 +208,15 @@ func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *
 	if err != nil {
 		return false, err
 	}
-
 	dataMap, err := commandRaw.Serialize(respData)
 	if err != nil {
 		return false, err
 	}
 
 	payloadMap := map[string]interface{}{
-		"token":  token,
-		"values": map[string]interface{}{tpSubDevice.SubDeviceAddr: dataMap},
+		"device_id": tpSubDevice.DeviceID,
+		//"values": map[string]interface{}{tpSubDevice.SubDeviceAddr: dataMap},
+		"values": dataMap,
 	}
 	var values []byte
 	// 将payloadMap.values 转为json字符串

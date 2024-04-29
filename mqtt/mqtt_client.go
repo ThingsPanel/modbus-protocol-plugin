@@ -39,7 +39,7 @@ func InitClient() {
 // 发布设备消息{"token":device_token,"values":{sub_device_addr1:{key:value...},sub_device_add2r:{key:value...}}}
 func Publish(payload string) error {
 	// 主题
-	topic := viper.GetString("mqtt.topic_to_publish")
+	topic := viper.GetString("mqtt.topic_to_publish_sub")
 	qos := viper.GetUint("mqtt.qos")
 	// 发布消息
 	if err := MqttClient.Publish(topic, string(payload), uint8(qos)); err != nil {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/gofrs/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 type TCPCommand struct {
@@ -64,16 +65,18 @@ const MBAPHeaderLength = 6 // MBAP Header length for Modbus TCP
 // 解析Modbus TCP返回的数据并提取数据部分
 func (r *TCPCommand) ParseTCPResponse(resp []byte) ([]byte, error) {
 	if len(resp) < MBAPHeaderLength { // minimal Modbus TCP frame size
+		logrus.Error("response too short")
 		return nil, errors.New("response too short")
 	}
 
 	//检查读取的数据不等于数据长度则丢弃
-	if r.FunctionCode == 0x03 || r.FunctionCode == 0x04 || r.FunctionCode == 0x06 {
-		//检查读取的数据与预设的数据长度不符合则丢弃
-		if len(resp) != int(2*r.Quantity)+5 {
-			return nil, fmt.Errorf("response length mismatch: expected %d but got %d", int(2*r.Quantity)+5, len(resp))
-		}
-	}
+	// if r.FunctionCode == 0x03 || r.FunctionCode == 0x04 || r.FunctionCode == 0x06 {
+	// 	//检查读取的数据与预设的数据长度不符合则丢弃
+	// 	if len(resp) != int(2*r.Quantity)+5 {
+	// 		logrus.Error("response length mismatch")
+	// 		return nil, fmt.Errorf("response length mismatch: expected %d but got %d", int(2*r.Quantity)+5, len(resp))
+	// 	}
+	// }
 	// Extracting MBAP fields from the response
 	r.TransactionID = binary.BigEndian.Uint16(resp[0:2])
 	r.ProtocolID = binary.BigEndian.Uint16(resp[2:4])
@@ -81,11 +84,13 @@ func (r *TCPCommand) ParseTCPResponse(resp []byte) ([]byte, error) {
 
 	// Check if the ProtocolID is as expected (typically 0 for Modbus)
 	if r.ProtocolID != 0 {
+		logrus.Error("unexpected ProtocolID")
 		return nil, fmt.Errorf("unexpected ProtocolID: %d", r.ProtocolID)
 	}
 
 	// Check if the length field in the MBAP header matches the actual response length
 	if int(r.Length)+6 != len(resp) { // +6 because we don't include the 6 byte length of the MBAP header and 1 byte unit identifier in the length field of the MBAP header
+		logrus.Error("length mismatch")
 		return nil, fmt.Errorf("length mismatch: MBAP header reports %d bytes but received %d bytes", r.Length, len(resp)-MBAPHeaderLength)
 	}
 

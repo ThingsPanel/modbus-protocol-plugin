@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Knetic/govaluate"
+	globaldata "github.com/ThingsPanel/modbus-protocol-plugin/global_data"
 	"github.com/sirupsen/logrus"
 )
 
@@ -182,8 +183,11 @@ func (c *CommandRaw) GetWriteCommand(key string, value interface{}, index int) (
 // 将modbus返回的数据序列化为json报文
 func (c *CommandRaw) Serialize(resp []byte) (map[string]interface{}, error) {
 	// 检查Modbus异常响应
-	if resp[1]&0x80 != 0 {
-		return nil, fmt.Errorf("modbus exception response: exception code %d", resp[2])
+	if resp[1] >= byte(0x80) {
+		// 错误码映射
+		err := fmt.Errorf("function Code(0x%02x) exception Code(0x%02x):%s", resp[1], resp[2], globaldata.GetModbusErrorDesc(resp[2]))
+		logrus.Error(err)
+		return nil, err
 	}
 
 	data := resp[3:] // 过滤Modbus地址、功能码和字节计数
