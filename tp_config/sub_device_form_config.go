@@ -15,12 +15,14 @@ func NewSubDeviceFormConfig(formConfigMap map[string]interface{}) (*SubDeviceFor
 	// SlaveID
 	slaveIDFloat, ok := formConfigMap["SlaveID"].(float64)
 	if !ok {
+		logrus.Error("SlaveID is not of type float64")
 		return nil, fmt.Errorf("SlaveID is not of type float64")
 	}
 
 	// CommandRawList
 	commandRawListInterface, ok := formConfigMap["CommandRawList"].([]interface{})
 	if !ok {
+		logrus.Error("CommandRawList is not of type []interface{}")
 		return nil, fmt.Errorf("CommandRawList is not of type []interface{}")
 	}
 
@@ -28,12 +30,13 @@ func NewSubDeviceFormConfig(formConfigMap map[string]interface{}) (*SubDeviceFor
 	for _, commandRawMapInterface := range commandRawListInterface {
 		commandRawMap, ok := commandRawMapInterface.(map[string]interface{})
 		if !ok {
+			logrus.Error("commandRawMapInterface is not of type map[string]interface{}")
 			return nil, fmt.Errorf("commandRawMapInterface is not of type map[string]interface{}")
 		}
 
 		commandRaw, err := NewCommandRaw(commandRawMap)
 		if err != nil {
-			logrus.Info("NewCommandRaw error:", err)
+			logrus.Error("NewCommandRaw error:", err)
 			continue
 		}
 		commandRawList = append(commandRawList, commandRaw)

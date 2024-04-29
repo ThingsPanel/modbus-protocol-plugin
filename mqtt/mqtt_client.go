@@ -65,7 +65,8 @@ func Subscribe() {
 
 // 设备下发消息的回调函数：主题plugin/modbus/# payload：{sub_device_addr:{key:value...},sub_device_addr:{key:value...}}
 func messageHandler(client MQTT.Client, msg MQTT.Message) {
-	fmt.Printf("Received message on topic: %s\nMessage: %s\n", msg.Topic(), msg.Payload())
+	logrus.Info("Received message on topic: ", msg.Topic())
+	logrus.Info("Received message: ", string(msg.Payload()))
 	// 解析主题获取deviceID（plugin/modbus/devices/telemetry/control/# #为subDeviceID）
 	subDeviceID := msg.Topic()[strings.LastIndex(msg.Topic(), "/")+1:]
 	// 解析payload的json报文
@@ -82,9 +83,8 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 		subDevice = m.(*api.SubDevice)
 	}
 	// 获取设备配置
-	subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(subDevice.Config)
+	subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(subDevice.ProtocolConfigTemplate)
 	if err != nil {
-		logrus.Info(err)
 		return
 	}
 	// 首先遍历dataMap

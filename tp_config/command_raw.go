@@ -110,17 +110,17 @@ func (c *CommandRaw) GetWriteCommand(key string, value interface{}, index int) (
 		startingAddress = c.StartingAddress + uint16(index)*2
 		data = make([]byte, 2)
 		if c.Endianess == "LITTLE" {
-			binary.LittleEndian.PutUint16(data, uint16(value.(int16)))
+			binary.LittleEndian.PutUint16(data, uint16(value.(float64)))
 		} else {
-			binary.BigEndian.PutUint16(data, uint16(value.(int16)))
+			binary.BigEndian.PutUint16(data, uint16(value.(float64)))
 		}
 	case "uint16":
 		startingAddress = c.StartingAddress + uint16(index)*2
 		data = make([]byte, 2)
 		if c.Endianess == "LITTLE" {
-			binary.LittleEndian.PutUint16(data, value.(uint16))
+			binary.LittleEndian.PutUint16(data, uint16(value.(float64)))
 		} else {
-			binary.BigEndian.PutUint16(data, value.(uint16))
+			binary.BigEndian.PutUint16(data, uint16(value.(float64)))
 		}
 	case "int32":
 		startingAddress = c.StartingAddress + uint16(index)*4
@@ -134,9 +134,9 @@ func (c *CommandRaw) GetWriteCommand(key string, value interface{}, index int) (
 		startingAddress = c.StartingAddress + uint16(index)*4
 		data = make([]byte, 4)
 		if c.Endianess == "LITTLE" {
-			binary.LittleEndian.PutUint32(data, value.(uint32))
+			binary.LittleEndian.PutUint32(data, uint32(value.(int32)))
 		} else {
-			binary.BigEndian.PutUint32(data, value.(uint32))
+			binary.BigEndian.PutUint32(data, uint32(value.(int32)))
 		}
 	case "float32":
 		startingAddress = c.StartingAddress + uint16(index)*4
