@@ -92,7 +92,7 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 	buf := make([]byte, 1024)
 
 	for {
-		if isClose, err := sendRTUDataAndProcessResponse(conn, data, buf, RTUCommand, commandRaw, regPkg, tpSubDevice, deviceID); err != nil {
+		if isClose, err := sendRTUDataAndProcessResponse(conn, data, buf, RTUCommand, commandRaw, regPkg, tpSubDevice); err != nil {
 			logrus.Info("Error processing data:", err.Error())
 			if isClose {
 				return
@@ -136,7 +136,7 @@ func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (in
 	return n, nil
 }
 
-func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice, deviceID string) (bool, error) {
+func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
 	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
 	if err != nil {
 		return true, err
@@ -154,7 +154,7 @@ func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *
 	}
 
 	payloadMap := map[string]interface{}{
-		"device_id": deviceID,
+		"device_id": tpSubDevice.DeviceID,
 		"values":    dataMap,
 	}
 	var values []byte
@@ -192,7 +192,7 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 	buf := make([]byte, 1024)
 
 	for {
-		if isClose, err := sendTCPDataAndProcessResponse(conn, data, buf, TCPCommand, commandRaw, regPkg, tpSubDevice, deviceID); err != nil {
+		if isClose, err := sendTCPDataAndProcessResponse(conn, data, buf, TCPCommand, commandRaw, regPkg, tpSubDevice); err != nil {
 			if isClose {
 				return
 			}
@@ -201,7 +201,7 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 	}
 }
 
-func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice, deviceID string) (bool, error) {
+func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
 
 	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
 
@@ -218,7 +218,7 @@ func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *
 	}
 
 	payloadMap := map[string]interface{}{
-		"device_id": deviceID,
+		"device_id": tpSubDevice.DeviceID,
 		//"values": map[string]interface{}{tpSubDevice.SubDeviceAddr: dataMap},
 		"values": dataMap,
 	}

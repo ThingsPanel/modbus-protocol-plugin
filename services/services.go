@@ -108,7 +108,7 @@ func verifyConnection(conn net.Conn) {
 		logrus.Info("SendStatus() failed, err: ", err)
 	}
 	// 设备上线
-	logrus.Info("设备上线：", regPkg)
+	logrus.Info("设备上线(", tpGatewayConfig.Data.ID, "):", regPkg)
 	HandleConn(regPkg, tpGatewayConfig.Data.ID) // 处理连接
 	// defer conn.Close()
 }
