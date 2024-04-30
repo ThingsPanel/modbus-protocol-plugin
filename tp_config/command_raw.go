@@ -231,9 +231,11 @@ func (c *CommandRaw) Serialize(resp []byte) (map[string]interface{}, error) {
 			val = math.Float64frombits(byteOrder.Uint64(data[byteIndex : byteIndex+8]))
 			byteIndex += 8
 		case "coil":
-			val = float64(data[byteIndex])
-			byteIndex++
-			// ... 处理其他数据类型
+			// Assuming each coil is a single bit and we may need to read multiple coils
+			// stored in consecutive bits of bytes.
+			coilVal := (data[byteIndex/8] >> (byteIndex % 8)) & 0x01 // Extract the bit at the correct position
+			val = float64(coilVal)
+			byteIndex++ // Move to the next bit
 		}
 
 		values[id] = val
