@@ -2,6 +2,7 @@ package tpconfig
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 )
@@ -15,8 +16,16 @@ func NewSubDeviceFormConfig(formConfigMap map[string]interface{}) (*SubDeviceFor
 	// SlaveID
 	slaveIDFloat, ok := formConfigMap["SlaveID"].(float64)
 	if !ok {
-		logrus.Error("SlaveID is not of type float64")
-		return nil, fmt.Errorf("SlaveID is not of type float64")
+		// 如果是字符串，转换为数字
+		slaveIDString, ok := formConfigMap["SlaveID"].(string)
+		if ok {
+			s, err := strconv.ParseFloat(slaveIDString, 64)
+			if err != nil {
+				logrus.Error("SlaveID is not of type float64 and cannot be converted to float64:", err)
+				return nil, fmt.Errorf("SlaveID is not of type float64 and cannot be converted to float64")
+			}
+			slaveIDFloat = s
+		}
 	}
 
 	// CommandRawList

@@ -65,12 +65,14 @@ func NewCommandRaw(commandRawMap map[string]interface{}) (*CommandRaw, error) {
 
 	equationListStr, ok := commandRawMap["EquationListStr"].(string)
 	if !ok {
-		return nil, fmt.Errorf("equationListStr is either missing or of incorrect type")
+		equationListStr = ""
+		logrus.Warn("equationListStr is either missing or of incorrect type, set to empty string")
 	}
 
 	decimalPlacesListStr, ok := commandRawMap["DecimalPlacesListStr"].(string)
 	if !ok {
-		return nil, fmt.Errorf("decimalPlacesListStr is either missing or of incorrect type")
+		decimalPlacesListStr = ""
+		logrus.Warn("decimalPlacesListStr is either missing or of incorrect type, set to empty string")
 	}
 	// ... repeat the same for other fields ...
 
