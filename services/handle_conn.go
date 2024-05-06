@@ -108,7 +108,6 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 	}
 }
 func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (int, error) {
-	logrus.Info("regPkg:", regPkg, " 请求：", data)
 
 	// 设置写超时时间
 	err := conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
@@ -116,7 +115,15 @@ func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (in
 		logrus.Info("SetWriteDeadline() failed, err: ", err)
 		return 0, err
 	}
-
+	// 获取锁
+	if _, exists := globaldata.DeviceRWLock[regPkg]; !exists {
+		globaldata.DeviceRWLock[regPkg] = &sync.Mutex{}
+	} else {
+		logrus.Info("获取锁：", regPkg)
+		globaldata.DeviceRWLock[regPkg].Lock()
+		defer globaldata.DeviceRWLock[regPkg].Unlock()
+	}
+	logrus.Info("regPkg:", regPkg, " 请求：", data)
 	_, err = conn.Write(data)
 	if err != nil {
 		return 0, err
@@ -204,13 +211,6 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 }
 
 func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
-	// 加锁
-	if _, exists := globaldata.DeviceRWLock[regPkg]; !exists {
-		globaldata.DeviceRWLock[regPkg] = &sync.Mutex{}
-	} else {
-		globaldata.DeviceRWLock[regPkg].Lock()
-		defer globaldata.DeviceRWLock[regPkg].Unlock()
-	}
 	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
 
 	if err != nil {
