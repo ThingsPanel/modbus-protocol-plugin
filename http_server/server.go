@@ -9,8 +9,6 @@ import (
 	"os"
 
 	globaldata "github.com/ThingsPanel/modbus-protocol-plugin/global_data"
-	httpclient "github.com/ThingsPanel/modbus-protocol-plugin/http_client"
-	"github.com/ThingsPanel/modbus-protocol-plugin/services"
 	service "github.com/ThingsPanel/modbus-protocol-plugin/services"
 	tpprotocolsdkgo "github.com/ThingsPanel/tp-protocol-sdk-go"
 	"github.com/sirupsen/logrus"
@@ -28,7 +26,8 @@ func start() {
 		// OnCreateDevice: OnCreateDevice,
 		// OnUpdateDevice: OnUpdateDevice,
 		// OnDeleteDevice: OnDeleteDevice,
-		OnGetForm: OnGetForm,
+		OnDisconnectDevice: OnDisconnectDevice,
+		OnGetForm:          OnGetForm,
 	}
 	addr := viper.GetString("http_server.address")
 	logrus.Info("http服务启动：", addr)
@@ -39,12 +38,11 @@ func start() {
 	}
 }
 
-// OnCreateDevice 创建设备
-func OnCreateDevice(w http.ResponseWriter, r *http.Request) {
-	logrus.Info("OnCreateDevice")
+// OnDisconnectDevice 断开设备
+func OnDisconnectDevice(w http.ResponseWriter, r *http.Request) {
+	logrus.Info("OnDisconnectDevice")
 	r.ParseForm() //解析参数，默认是不会解析的
 	logrus.Info("【收到api请求】path", r.URL.Path)
-	logrus.Info("scheme", r.URL.Scheme)
 	// 读取客户端发送的数据
 	var reqDataMap = make(map[string]interface{})
 	if err := json.NewDecoder(r.Body).Decode(&reqDataMap); err != nil {
@@ -52,86 +50,26 @@ func OnCreateDevice(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		return
 	}
-
-	gateWayID := reqDataMap["ParentId"].(string)
-	err := updateGatewayConfig(gateWayID)
-	if err != nil {
-		logrus.Info(err.Error())
-		r.Body.Close()
-		w.WriteHeader(400)
+	logrus.Info("reqDataMap:", reqDataMap)
+	// 判断reqDataMap是否有key为device_id的值
+	if _, ok := reqDataMap["device_id"]; !ok {
+		RspError(w, errors.New("device_id not found"))
 		return
 	}
-	// 返回成功
-	var rspdata = make(map[string]interface{})
-	w.Header().Set("Content-Type", "application/json")
-	rspdata["code"] = 200
-	rspdata["message"] = "success"
-	data, err := json.Marshal(rspdata)
-	if err != nil {
-		logrus.Info(err.Error())
+	// 判断reqDataMap["device_id"]的数据类型是否为string
+	if _, ok := reqDataMap["device_id"].(string); !ok {
+		RspError(w, errors.New("device_id type error"))
+		return
 	}
-	fmt.Fprint(w, string(data))
-}
-
-// OnUpdateDevice 更新设备
-func OnUpdateDevice(w http.ResponseWriter, r *http.Request) {
-	logrus.Info("OnUpdateDevice")
-	r.ParseForm() //解析参数，默认是不会解析的
-	logrus.Info("【收到api请求】path", r.URL.Path)
-	logrus.Info("scheme", r.URL.Scheme)
-	// 读取客户端发送的数据
-	var reqDataMap = make(map[string]interface{})
-	if err := json.NewDecoder(r.Body).Decode(&reqDataMap); err != nil {
+	deviceID := reqDataMap["device_id"].(string)
+	err := disconnectDevice(deviceID)
+	if err != nil {
+		logrus.Error(err.Error())
 		r.Body.Close()
 		w.WriteHeader(400)
 		return
 	}
 
-	gateWayID := reqDataMap["ParentId"].(string)
-	err := updateGatewayConfig(gateWayID)
-	if err != nil {
-		logrus.Info(err.Error())
-		r.Body.Close()
-		w.WriteHeader(400)
-		return
-	}
-	// 返回成功
-	var rspdata = make(map[string]interface{})
-	w.Header().Set("Content-Type", "application/json")
-	rspdata["code"] = 200
-	rspdata["message"] = "success"
-	data, err := json.Marshal(rspdata)
-	if err != nil {
-		logrus.Info(err.Error())
-	}
-	fmt.Fprint(w, string(data))
-}
-
-// OnDeleteDevice 删除设备
-func OnDeleteDevice(w http.ResponseWriter, r *http.Request) {
-	logrus.Info("OnDeleteDevice")
-	r.ParseForm() //解析参数，默认是不会解析的
-	logrus.Info("【收到api请求】path", r.URL.Path)
-	logrus.Info("scheme", r.URL.Scheme)
-	// 读取客户端发送的数据
-	var reqDataMap = make(map[string]interface{})
-	if err := json.NewDecoder(r.Body).Decode(&reqDataMap); err != nil {
-		r.Body.Close()
-		w.WriteHeader(400)
-		return
-	}
-	deviceType := reqDataMap["DeviceType"].(string)
-	// 子设备
-	if deviceType == "3" {
-		gateWayID := reqDataMap["ParentId"].(string)
-		err := updateGatewayConfig(gateWayID)
-		if err != nil {
-			logrus.Info(err.Error())
-			r.Body.Close()
-			w.WriteHeader(400)
-			return
-		}
-	}
 	// 返回成功
 	var rspdata = make(map[string]interface{})
 	w.Header().Set("Content-Type", "application/json")
@@ -188,27 +126,17 @@ func OnGetForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// 更新配置
-func updateGatewayConfig(gateWayID string) error {
-	// 获取网关配置
-	gatewayConfig, err := httpclient.GetDeviceConfig("", gateWayID)
-	if err != nil {
-		return err
-	}
-	logrus.Info("网关配置：", gatewayConfig.Data)
+// 断开设备连接
+func disconnectDevice(deviceID string) error {
 	// 获取连接
-	conn, ok := globaldata.DeviceConnectionMap.Load(gatewayConfig.Data.Voucher)
+	conn, ok := globaldata.DeviceConnectionMap.Load(deviceID)
 	if ok {
 		c := *conn.(*net.Conn)
 		// 如果本身是关闭的也无所谓，它会在读和写的时候返回错误
-		service.CloseConnection(c, gatewayConfig.Data.Voucher)
+		service.CloseConnection(c, deviceID)
 	} else {
-		return errors.New("Connection not found for token:" + gatewayConfig.Data.Voucher)
+		return errors.New("Connection not found for deviceID:" + deviceID)
 	}
-	// 更换配置
-	globaldata.GateWayConfigMap.Store(gatewayConfig.Data.Voucher, &gatewayConfig.Data)
-	// 将设备连接存入全局变量
-	services.HandleConn(gatewayConfig.Data.Voucher, gatewayConfig.Data.ID) // 处理连接
 	return nil
 }
 
@@ -232,3 +160,132 @@ func readFormConfigByPath(path string) interface{} {
 		return info
 	}
 }
+
+// OnCreateDevice 创建设备
+// func OnCreateDevice(w http.ResponseWriter, r *http.Request) {
+// 	logrus.Info("OnCreateDevice")
+// 	r.ParseForm() //解析参数，默认是不会解析的
+// 	logrus.Info("【收到api请求】path", r.URL.Path)
+// 	logrus.Info("scheme", r.URL.Scheme)
+// 	// 读取客户端发送的数据
+// 	var reqDataMap = make(map[string]interface{})
+// 	if err := json.NewDecoder(r.Body).Decode(&reqDataMap); err != nil {
+// 		r.Body.Close()
+// 		w.WriteHeader(400)
+// 		return
+// 	}
+
+// 	gateWayID := reqDataMap["ParentId"].(string)
+// 	err := updateGatewayConfig(gateWayID)
+// 	if err != nil {
+// 		logrus.Info(err.Error())
+// 		r.Body.Close()
+// 		w.WriteHeader(400)
+// 		return
+// 	}
+// 	// 返回成功
+// 	var rspdata = make(map[string]interface{})
+// 	w.Header().Set("Content-Type", "application/json")
+// 	rspdata["code"] = 200
+// 	rspdata["message"] = "success"
+// 	data, err := json.Marshal(rspdata)
+// 	if err != nil {
+// 		logrus.Info(err.Error())
+// 	}
+// 	fmt.Fprint(w, string(data))
+// }
+
+// OnUpdateDevice 更新设备
+// func OnUpdateDevice(w http.ResponseWriter, r *http.Request) {
+// 	logrus.Info("OnUpdateDevice")
+// 	r.ParseForm() //解析参数，默认是不会解析的
+// 	logrus.Info("【收到api请求】path", r.URL.Path)
+// 	logrus.Info("scheme", r.URL.Scheme)
+// 	// 读取客户端发送的数据
+// 	var reqDataMap = make(map[string]interface{})
+// 	if err := json.NewDecoder(r.Body).Decode(&reqDataMap); err != nil {
+// 		r.Body.Close()
+// 		w.WriteHeader(400)
+// 		return
+// 	}
+
+// 	gateWayID := reqDataMap["ParentId"].(string)
+// 	err := updateGatewayConfig(gateWayID)
+// 	if err != nil {
+// 		logrus.Info(err.Error())
+// 		r.Body.Close()
+// 		w.WriteHeader(400)
+// 		return
+// 	}
+// 	// 返回成功
+// 	var rspdata = make(map[string]interface{})
+// 	w.Header().Set("Content-Type", "application/json")
+// 	rspdata["code"] = 200
+// 	rspdata["message"] = "success"
+// 	data, err := json.Marshal(rspdata)
+// 	if err != nil {
+// 		logrus.Info(err.Error())
+// 	}
+// 	fmt.Fprint(w, string(data))
+// }
+
+// OnDeleteDevice 删除设备
+// func OnDeleteDevice(w http.ResponseWriter, r *http.Request) {
+// 	logrus.Info("OnDeleteDevice")
+// 	r.ParseForm() //解析参数，默认是不会解析的
+// 	logrus.Info("【收到api请求】path", r.URL.Path)
+// 	logrus.Info("scheme", r.URL.Scheme)
+// 	// 读取客户端发送的数据
+// 	var reqDataMap = make(map[string]interface{})
+// 	if err := json.NewDecoder(r.Body).Decode(&reqDataMap); err != nil {
+// 		r.Body.Close()
+// 		w.WriteHeader(400)
+// 		return
+// 	}
+// 	deviceType := reqDataMap["DeviceType"].(string)
+// 	// 子设备
+// 	if deviceType == "3" {
+// 		gateWayID := reqDataMap["ParentId"].(string)
+// 		err := updateGatewayConfig(gateWayID)
+// 		if err != nil {
+// 			logrus.Info(err.Error())
+// 			r.Body.Close()
+// 			w.WriteHeader(400)
+// 			return
+// 		}
+// 	}
+// 	// 返回成功
+// 	var rspdata = make(map[string]interface{})
+// 	w.Header().Set("Content-Type", "application/json")
+// 	rspdata["code"] = 200
+// 	rspdata["message"] = "success"
+// 	data, err := json.Marshal(rspdata)
+// 	if err != nil {
+// 		logrus.Info(err.Error())
+// 	}
+// 	fmt.Fprint(w, string(data))
+// }
+
+// 更新配置
+// func updateGatewayConfig(gateWayID string) error {
+// 	// 获取网关配置
+// 	gatewayConfig, err := httpclient.GetDeviceConfig("", gateWayID)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	logrus.Info("网关配置：", gatewayConfig.Data)
+// 	// 获取连接
+// 	conn, ok := globaldata.DeviceConnectionMap.Load(gatewayConfig.Data.Voucher)
+// 	if ok {
+// 		c := *conn.(*net.Conn)
+// 		// 如果本身是关闭的也无所谓，它会在读和写的时候返回错误
+// 		service.CloseConnection(c, gatewayConfig.Data.Voucher)
+// 	} else {
+// 		return errors.New("Connection not found for token:" + gatewayConfig.Data.Voucher)
+// 	}
+// 	// 更换配置
+// 	globaldata.GateWayConfigMap.Store(gatewayConfig.Data.Voucher, &gatewayConfig.Data)
+// 	// 将设备连接存入全局变量
+// 	services.HandleConn(gatewayConfig.Data.Voucher, gatewayConfig.Data.ID) // 处理连接
+// 	return nil
+// }

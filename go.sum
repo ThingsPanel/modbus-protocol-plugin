@@ -50,6 +50,8 @@ github.com/ThingsPanel/tp-protocol-sdk-go v1.1.5 h1:sw2Me0PgtDfixO+8bq4esS4moIwE
 github.com/ThingsPanel/tp-protocol-sdk-go v1.1.5/go.mod h1:88uDT+0yrKFn96AsT8ayxZUwSo/NRW14b6V/8zPOzQo=
 github.com/ThingsPanel/tp-protocol-sdk-go v1.1.6 h1:bJE98n06jjrD2/rcH93TX28vTsTNzc/BCH+GRhfqA50=
 github.com/ThingsPanel/tp-protocol-sdk-go v1.1.6/go.mod h1:88uDT+0yrKFn96AsT8ayxZUwSo/NRW14b6V/8zPOzQo=
+github.com/ThingsPanel/tp-protocol-sdk-go v1.1.7 h1:8gYA/x1MmLmTTkpEP9HczJbizdKDgx3svc+tDy2H7Pc=
+github.com/ThingsPanel/tp-protocol-sdk-go v1.1.7/go.mod h1:88uDT+0yrKFn96AsT8ayxZUwSo/NRW14b6V/8zPOzQo=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
