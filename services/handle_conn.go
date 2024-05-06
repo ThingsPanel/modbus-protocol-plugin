@@ -171,6 +171,7 @@ func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *
 	if err != nil {
 		return false, err
 	}
+	logrus.Info("values:", string(values))
 	payloadMap["values"] = values
 	payload, err := json.Marshal(payloadMap)
 	if err != nil {
