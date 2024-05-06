@@ -19,6 +19,9 @@ var SubDeviceIDAndGateWayIDMap sync.Map
 // var DeviceConnectionMap = make(map[string]*net.Conn)
 var DeviceConnectionMap sync.Map
 
+// 设备读写互斥锁
+var DeviceRWLock = map[string]*sync.Mutex{}
+
 // modbus错误码映射
 var ModbusErrorMap = map[byte]string{
 	0x01: "Illegal function(非法功能)",
@@ -53,5 +56,4 @@ func GetGateWayConfigByDeviceID(subDeviceID string) (*api.DeviceConfigResponseDa
 		logrus.Error("通过子设备ID获取网关ID失败")
 		return nil, false
 	}
-	return nil, false
 }

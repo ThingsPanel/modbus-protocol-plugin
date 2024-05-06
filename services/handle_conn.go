@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"net"
+	"sync"
 	"time"
 
 	globaldata "github.com/ThingsPanel/modbus-protocol-plugin/global_data"
@@ -73,6 +74,7 @@ func HandleConn(regPkg, deviceID string) {
 	}
 }
 
+// 开启线程处理RTUCommand
 func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice, deviceID string) {
 	data, err := RTUCommand.Serialize()
 	if err != nil {
@@ -202,7 +204,13 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 }
 
 func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
-
+	// 加锁
+	if _, exists := globaldata.DeviceRWLock[regPkg]; !exists {
+		globaldata.DeviceRWLock[regPkg] = &sync.Mutex{}
+	} else {
+		globaldata.DeviceRWLock[regPkg].Lock()
+		defer globaldata.DeviceRWLock[regPkg].Unlock()
+	}
 	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
 
 	if err != nil {

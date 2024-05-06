@@ -50,28 +50,29 @@ func handleChanConnections() {
 	}
 }
 
-func CloseConnection(conn net.Conn, token string) {
+func CloseConnection(conn net.Conn, regPkg string) {
 	err := conn.Close()
 	if err != nil {
 		logrus.Info("Close() failed, err: ", err)
 	}
 	// 删除全局变量
-	if m, exists := globaldata.DeviceConnectionMap.Load(token); !exists {
+	if m, exists := globaldata.DeviceConnectionMap.Load(regPkg); !exists {
 		return
 	} else if conn != *m.(*net.Conn) {
 		return
 	}
-	logrus.Info("删除全局变量完成：", token)
+	logrus.Info("删除全局变量完成：", regPkg)
 	// 做其他事情，比如发送离线消息
 	m := *MQTT.MqttClient
-	err = m.SendStatus(token, "0")
+	err = m.SendStatus(regPkg, "0")
 	if err != nil {
 		logrus.Info("SendStatus() failed, err: ", err)
 	}
-	globaldata.GateWayConfigMap.Delete(token)
-	globaldata.DeviceConnectionMap.Delete(token)
+	globaldata.GateWayConfigMap.Delete(regPkg)
+	globaldata.DeviceConnectionMap.Delete(regPkg)
+	delete(globaldata.DeviceRWLock, regPkg)
 	// 设备离线
-	logrus.Info("设备离线：", token)
+	logrus.Info("设备离线：", regPkg)
 }
 
 // 验证连接并继续处理数据
