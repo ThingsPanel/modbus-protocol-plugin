@@ -151,7 +151,6 @@ func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *
 		return true, err
 	}
 
-	logrus.Info("regPkg:", regPkg, "返回：", buf[:n])
 	respData, err := RTUCommand.ParseAndValidateResponse(buf[:n])
 	if err != nil {
 		return false, err
