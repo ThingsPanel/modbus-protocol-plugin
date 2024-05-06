@@ -119,8 +119,8 @@ func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (in
 	if _, exists := globaldata.DeviceRWLock[regPkg]; !exists {
 		globaldata.DeviceRWLock[regPkg] = &sync.Mutex{}
 	} else {
-		logrus.Info("获取锁：", regPkg)
 		globaldata.DeviceRWLock[regPkg].Lock()
+		logrus.Info("获取到锁：", regPkg)
 		defer globaldata.DeviceRWLock[regPkg].Unlock()
 	}
 	logrus.Info("regPkg:", regPkg, " 请求：", data)
