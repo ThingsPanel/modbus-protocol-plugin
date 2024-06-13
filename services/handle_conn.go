@@ -28,7 +28,8 @@ func HandleConn(token string) {
 	m, _ := globaldata.GateWayConfigMap.Load(token)
 	gatewayConfig := m.(*api.DeviceConfigResponseData)
 	// 遍历网关的子设备
-	for _, tpSubDevice := range gatewayConfig.SubDevices {
+	for _, tpSubDeviceY := range gatewayConfig.SubDevices {
+		tpSubDevice:=tpSubDeviceY
 		// 将tp子设备的表单配置转SubDeviceFormConfig
 		subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(tpSubDevice.Config)
 		if err != nil {
