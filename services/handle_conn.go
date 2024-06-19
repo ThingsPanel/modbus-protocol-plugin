@@ -97,6 +97,7 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 		if isClose, err := sendRTUDataAndProcessResponse(conn, data, buf, RTUCommand, commandRaw, regPkg, tpSubDevice); err != nil {
 			logrus.Info("Error processing data:", err.Error())
 			if isClose {
+				conn.Close()
 				return
 			}
 		}
@@ -203,6 +204,7 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 	for {
 		if isClose, err := sendTCPDataAndProcessResponse(conn, data, buf, TCPCommand, commandRaw, regPkg, tpSubDevice); err != nil {
 			if isClose {
+				conn.Close()
 				return
 			}
 		}

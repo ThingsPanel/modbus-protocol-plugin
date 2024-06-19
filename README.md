@@ -19,19 +19,7 @@
 ### SQL导入
 在数据库执行以下sql
 ```sql
-INSERT INTO public.tp_protocol_plugin
-(id, "name", protocol_type, access_address, http_address, sub_topic_prefix, created_at, description, device_type)
-VALUES('c8a13166-e010-24e4-0565-e87feea162bb', 'MODBUS_TCP协议', 'MODBUS_TCP', '服务ip:502', '127.0.0.1:503', 'plugin/modbus/', 1668759820, '请参考文档对接设备', '2');
-INSERT INTO public.tp_protocol_plugin
-(id, "name", protocol_type, access_address, http_address, sub_topic_prefix, created_at, description, device_type)
-VALUES('2a95000c-9c29-7aae-58b0-5202daf1546a', 'MODBUS_RTU协议', 'MODBUS_RTU', '服务ip:502', '127.0.0.1:503', 'plugin/modbus/', 1668759841, '请参考文档对接设备', '2');
-
-INSERT INTO public.tp_dict
-(id, dict_code, dict_value, "describe", created_at)
-VALUES('8881ffe7-7c2b-43c2-13f3-7227dafa46bv', 'GATEWAY_PROTOCOL', 'MODBUS_TCP', 'MODBUS_TCP协议', 1669281289);
-INSERT INTO public.tp_dict
-(id, dict_code, dict_value, "describe", created_at)
-VALUES('8881ffe7-7c2b-43c2-13f3-7227dafa46bs', 'GATEWAY_PROTOCOL', 'MODBUS_RTU', 'MODBUS_RTU协议', 1669281289);
+待提供
 ```
 
 ## 结构图
@@ -49,21 +37,14 @@ go语言有sdk包封装了下面两部分以及mqtt交互部分；包地址：ht
 ### plugin需要提供的接口
 | 接口                      | 接口描述         | 接口链接                                                                                      |
 | ------------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
-| /api/form/config          | 获取插件表单配置 | [传送](https://www.apifox.cn/apidoc/shared-34b48097-8c3a-4ffe-907e-12ff3c669936/api-43746721) |
-| /api/device/config/update | 修改子设备配置   | [传送](https://www.apifox.cn/apidoc/shared-34b48097-8c3a-4ffe-907e-12ff3c669936/api-43903019) |
-| /api/device/config/add    | 新增子设备配置   | [传送](https://www.apifox.cn/apidoc/shared-34b48097-8c3a-4ffe-907e-12ff3c669936/api-43925736) |
-| /api/device/config/delete | 删除子设备配置   | [传送](https://www.apifox.cn/apidoc/shared-34b48097-8c3a-4ffe-907e-12ff3c669936/api-43965145) |
+| /api/v1/form/config          | 获取插件表单配置 | [传送](https://apifox.com/apidoc/shared-754c3f13-b1c0-44fe-905d-c75e3210d509/api-157925179) |
+| api/v1/device/disconnect      | 断开设备连接   | [传送](https://apifox.com/apidoc/shared-754c3f13-b1c0-44fe-905d-c75e3210d509/api-157929013) |
 
 ### thingspanel提供给插件的接口
 | 接口                      | 接口描述                                                                                    | 接口链接                                                                                      |
 | ------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| /api/plugin/device/config | 设备连接时送来密钥，根据密钥获取插件相关设备的信息，"SubDevice"的属性时插件表单中定义的属性 | [传送](https://www.apifox.cn/apidoc/shared-34b48097-8c3a-4ffe-907e-12ff3c669936/api-43535958) |
+| /api/v1/plugin/device/config | 获取设备配置（包含子设备配置） | [传送](https://apifox.com/apidoc/shared-754c3f13-b1c0-44fe-905d-c75e3210d509/api-157886140) |
 
-
-## 插件表单
-
-`./form_config.json`  （表单规则详情请参考modbus-protocol-plugin案例）
-ThingsPanel前端通过`/api/form/config`接口获取表单配置，生成子设备的表单，用户填写的表单数据会出现在ThingsPanel提供的`/api/plugin/device/config`接口返回的数据中的"SubDevice"属性中。
 
 ## 具体开发规范可参考官方文档thingspanel.io中协议插件开发部分
 
