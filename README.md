@@ -2,6 +2,15 @@
 
 设备是mqtt以外的协议除了可以从规则引擎接入，也可以开发协议插件服务接入到ThingsPanel
 
+## 部署
+
+```bash
+git clone https://github.com/ThingsPanel/modbus-protocol-plugin.git
+cd modbus-protocol-plugin
+go run . start
+```
+或使用其他工具托管部署
+
 ## 插件如何注册到平台
 `手动注册`和`SQL导入`二选一
 ### 手动注册
