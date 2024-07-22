@@ -1,6 +1,7 @@
 # 开发帮助
 
 ## SDK升级
+
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.0
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.2
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.3
@@ -8,10 +9,12 @@ go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.4
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.5
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.6
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.7
+go get -u github.com/ThingsPanel/tp-protocol-sdk-go@latest
 mosquitto_pub -h 47.115.210.16 -p 1883 -t "devices/telemetry" -m "{\"temp\":12.5}" -u "c55d8498" -P "c55d8498-e01e" -i "0"
 mosquitto_pub -h 47.115.210.16 -p 1883 -t "devices/telemetry" -m "{\"temp\":12.5}" -u "c55d8498" -P "c55d8498-e01e" -i "0"
 
 ## 测试
+
 设备ID：7fa6bf8d-4803-d1a3-2c0c-84d1cee4b9ba
 pkg：xxxxxx
 
