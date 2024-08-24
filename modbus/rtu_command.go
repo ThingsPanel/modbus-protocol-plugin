@@ -73,7 +73,7 @@ func (r *RTUCommand) ParseAndValidateResponse(resp []byte) ([]byte, error) {
 
 	// Compare the received CRC with the computed CRC
 	if receivedCRC != computedCRC {
-		logrus.Info("CRC mismatch: expected %04X but got %04X", computedCRC, receivedCRC)
+		logrus.Infof("CRC mismatch: expected %04X but got %04X", computedCRC, receivedCRC)
 		// return nil, fmt.Errorf("CRC mismatch: expected %04X but got %04X", computedCRC, receivedCRC)
 	}
 
