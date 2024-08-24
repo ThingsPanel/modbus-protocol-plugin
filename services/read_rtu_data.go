@@ -1,24 +1,22 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
-	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 func ReadModbusRTUResponse(conn net.Conn) ([]byte, error) {
-	// 设置读取超时
-	err := conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	if err != nil {
-		return nil, fmt.Errorf("设置读取超时失败: %v", err)
-	}
 
 	// 读取前3个字节以确定响应类型和长度
 	header := make([]byte, 3)
-	_, err = io.ReadFull(conn, header)
+	_, err := io.ReadFull(conn, header)
 	if err != nil {
-		return nil, fmt.Errorf("读取响应头失败: %v", err)
+		logrus.Warn("读取失败,跳过:", err)
+		return nil, fmt.Errorf("read failed")
 	}
 
 	var length int
@@ -38,7 +36,20 @@ func ReadModbusRTUResponse(conn net.Conn) ([]byte, error) {
 			// 写入多个线圈或多个寄存器
 			length = 8 // 从站地址(1) + 功能码(1) + 起始地址(2) + 数量(2) + CRC(2)
 		default:
-			return nil, fmt.Errorf("不支持的功能码: %02X", header[1])
+			// 不支持的功能码，读取并丢弃所有剩余数据
+			discardBuffer := make([]byte, 1024)
+			for {
+				_, err := conn.Read(discardBuffer)
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					logrus.Warn("读取不支持的功能码剩余数据失败,跳过:", err)
+					return nil, fmt.Errorf("read failed")
+				}
+			}
+			logrus.Warnf("不支持的功能码: %02X，已丢弃所有剩余数据%02X", header[1], discardBuffer)
+			return nil, errors.New("not supported function code")
 		}
 	}
 
@@ -49,7 +60,8 @@ func ReadModbusRTUResponse(conn net.Conn) ([]byte, error) {
 	// 读取剩余的字节
 	_, err = io.ReadFull(conn, response[3:])
 	if err != nil {
-		return nil, fmt.Errorf("读取响应剩余部分失败: %v", err)
+		logrus.Warn("读取剩余数据失败,跳过:", err)
+		return nil, fmt.Errorf("read failed")
 	}
 
 	return response, nil

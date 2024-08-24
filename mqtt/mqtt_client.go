@@ -166,7 +166,7 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string) er
 
 	// 读取数据
 	// 设置读取超时时间
-	err = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 	if err != nil {
 		logrus.Info("SetReadDeadline() failed, err: ", err)
 		return err
@@ -174,7 +174,9 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string) er
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
 	if err != nil {
-		return fmt.Errorf("读取失败: %v", err)
+		logrus.Warn("读取控制响应数据超时,超时时间为3秒")
+		return nil
+		//return fmt.Errorf("读取失败: %v", err)
 	}
 
 	logrus.Info("voucher:", voucher, "控制设备响应：", buf[:n])
