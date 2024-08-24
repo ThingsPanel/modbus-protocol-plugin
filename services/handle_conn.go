@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -91,15 +92,15 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 	conn := *gatewayConn
 	defer CloseConnection(conn, deviceID)
 
-	buf := make([]byte, 1024)
-
 	for {
-		if isClose, err := sendRTUDataAndProcessResponse(conn, data, buf, RTUCommand, commandRaw, regPkg, tpSubDevice); err != nil {
+		isClose, err := sendRTUDataAndProcessResponse(conn, data, RTUCommand, commandRaw, regPkg, tpSubDevice)
+		if err != nil {
 			logrus.Info("Error processing data:", err.Error())
 			if isClose {
 				conn.Close()
 				return
 			}
+
 		}
 		// 间隔时间不能小于1秒
 		if commandRaw.Interval < 1 {
@@ -108,7 +109,7 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 		time.Sleep(time.Duration(commandRaw.Interval) * time.Second)
 	}
 }
-func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (int, error) {
+func sendDataAndReadResponse(conn net.Conn, data []byte, regPkg string, modbusType string) (int, []byte, error) {
 
 	// 设置写超时时间
 	err := conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
@@ -126,26 +127,36 @@ func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (in
 	logrus.Info("regPkg:", regPkg, " 请求：", data)
 	_, err = conn.Write(data)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	// 设置读取超时时间
 	err = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	if err != nil {
 		logrus.Info("SetReadDeadline() failed, err: ", err)
-		return 0, err
+		return 0, nil, err
 	}
-	buf, err = ReadModbusRTUResponse(conn)
-	if err != nil {
-		return 0, err
+	var buf []byte
+	if modbusType == "RTU" {
+		buf, err = ReadModbusRTUResponse(conn)
+		if err != nil {
+			return 0, nil, err
+		}
+	} else if modbusType == "TCP" {
+		buf, err = ReadModbusTCPResponse(conn)
+		if err != nil {
+			return 0, nil, err
+		}
+	} else {
+		return 0, nil, fmt.Errorf("unsupported modbus type")
 	}
 	n := len(buf)
 	logrus.Info("regPkg:", regPkg, " 返回：", buf[:n])
-	return n, nil
+	return n, buf, nil
 }
 
-func sendRTUDataAndProcessResponse(conn net.Conn, data, buf []byte, RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
-	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
+func sendRTUDataAndProcessResponse(conn net.Conn, data []byte, RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
+	n, buf, err := sendDataAndReadResponse(conn, data, regPkg, "RTU")
 	if err != nil {
 		if err.Error() == "not supported function code" || err.Error() == "read failed" {
 			return false, err
@@ -200,10 +211,8 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 	conn := *gatewayConn
 	defer CloseConnection(conn, deviceID)
 
-	buf := make([]byte, 1024)
-
 	for {
-		if isClose, err := sendTCPDataAndProcessResponse(conn, data, buf, TCPCommand, commandRaw, regPkg, tpSubDevice); err != nil {
+		if isClose, err := sendTCPDataAndProcessResponse(conn, data, TCPCommand, commandRaw, regPkg, tpSubDevice); err != nil {
 			if isClose {
 				conn.Close()
 				return
@@ -213,8 +222,8 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 	}
 }
 
-func sendTCPDataAndProcessResponse(conn net.Conn, data, buf []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
-	n, err := sendDataAndReadResponse(conn, data, buf, regPkg)
+func sendTCPDataAndProcessResponse(conn net.Conn, data []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
+	n, buf, err := sendDataAndReadResponse(conn, data, regPkg, "TCP")
 
 	if err != nil {
 		return true, err
