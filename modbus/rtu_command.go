@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/gofrs/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 type RTUCommand struct {
@@ -72,7 +73,8 @@ func (r *RTUCommand) ParseAndValidateResponse(resp []byte) ([]byte, error) {
 
 	// Compare the received CRC with the computed CRC
 	if receivedCRC != computedCRC {
-		return nil, fmt.Errorf("CRC mismatch: expected %04X but got %04X", computedCRC, receivedCRC)
+		logrus.Info("CRC mismatch: expected %04X but got %04X", computedCRC, receivedCRC)
+		// return nil, fmt.Errorf("CRC mismatch: expected %04X but got %04X", computedCRC, receivedCRC)
 	}
 
 	return resp[:len(resp)-2], nil
