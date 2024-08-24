@@ -136,12 +136,11 @@ func sendDataAndReadResponse(conn net.Conn, data, buf []byte, regPkg string) (in
 		logrus.Info("SetReadDeadline() failed, err: ", err)
 		return 0, err
 	}
-
-	n, err := conn.Read(buf)
+	buf, err = ReadModbusRTUResponse(conn)
 	if err != nil {
-		logrus.Warn("Read() failed, err: ", err)
-		return n, err
+		return 0, err
 	}
+	n := len(buf)
 	logrus.Info("regPkg:", regPkg, " 返回：", buf[:n])
 	return n, nil
 }
