@@ -256,3 +256,38 @@ func sendTCPDataAndProcessResponse(conn net.Conn, data []byte, TCPCommand *modbu
 
 	return false, MQTT.Publish(string(payload))
 }
+
+// 开启线程处理RTUCommand
+func OneHandleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice, deviceID string) {
+	data, err := RTUCommand.Serialize()
+	if err != nil {
+		logrus.Info(err.Error())
+		return
+	}
+
+	m, exists := globaldata.DeviceConnectionMap.Load(deviceID)
+	if !exists {
+		logrus.Info("No connection found for regPkg:", regPkg, " deviceID:", deviceID)
+		return
+	}
+	gatewayConn := m.(*net.Conn)
+	conn := *gatewayConn
+	defer CloseConnection(conn, deviceID)
+
+	for {
+		isClose, err := sendRTUDataAndProcessResponse(conn, data, RTUCommand, commandRaw, regPkg, tpSubDevice)
+		if err != nil {
+			logrus.Info("Error processing data:", err.Error())
+			if isClose {
+				conn.Close()
+				return
+			}
+
+		}
+		// 间隔时间不能小于1秒
+		if commandRaw.Interval < 1 {
+			commandRaw.Interval = 1
+		}
+		time.Sleep(time.Duration(commandRaw.Interval) * time.Second)
+	}
+}

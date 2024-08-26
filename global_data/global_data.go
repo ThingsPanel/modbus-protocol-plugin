@@ -1,6 +1,8 @@
 package globaldata
 
 import (
+	"encoding/json"
+	"strings"
 	"sync"
 
 	"github.com/ThingsPanel/tp-protocol-sdk-go/api"
@@ -56,4 +58,33 @@ func GetGateWayConfigByDeviceID(subDeviceID string) (*api.DeviceConfigResponseDa
 		logrus.Error("通过子设备ID获取网关ID失败")
 		return nil, false
 	}
+}
+
+// 通过凭证获取regPkg,voucher{"reg_pkg":"` + regPkg + `"}
+func GetRegPkgByToken(voucher string) (string, bool) {
+	// 去除可能存在的前缀和后缀空白字符
+	voucher = strings.TrimSpace(voucher)
+
+	// 检查 voucher 是否为空
+	if voucher == "" {
+		return "", false
+	}
+
+	// 定义一个结构体来解析 JSON
+	var data struct {
+		RegPkg string `json:"reg_pkg"`
+	}
+
+	// 解析 JSON
+	err := json.Unmarshal([]byte(voucher), &data)
+	if err != nil {
+		return "", false
+	}
+
+	// 检查 RegPkg 是否为空
+	if data.RegPkg == "" {
+		return "", false
+	}
+
+	return data.RegPkg, true
 }

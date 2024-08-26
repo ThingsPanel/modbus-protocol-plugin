@@ -115,11 +115,27 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 							logrus.Info(err)
 							return
 						}
-						err = handleDeviceConnection(gateWayConfigMap.ID, sendData, gateWayConfigMap.Voucher)
+						err = handleDeviceConnection(gateWayConfigMap.ID, sendData, gateWayConfigMap.Voucher, "MODBUS_RTU")
 						if err != nil {
 							logrus.Info(err)
 							return
 						}
+						// 返回一次
+						logrus.Info("控制成功，通知设备")
+						err = PublishRsponse(key, value, subDevice.DeviceID)
+						if err != nil {
+							logrus.Info(err)
+						}
+						// 写完后需要再读一次
+						// RTUCommand = modbus.NewRTUCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, modbus.EndianessType(commandRaw.Endianess))
+						// regPkg, isTrue := globaldata.GetRegPkgByToken(gateWayConfigMap.Voucher)
+						// if isTrue {
+						// 	time.Sleep(2000 * time.Millisecond)
+						// 	logrus.Debug("控制后再读一次")
+						// 	//等待500毫秒
+						// 	HandleRTUCommand(&RTUCommand, commandRaw, regPkg, subDevice, gateWayConfigMap.ID)
+						// }
+
 						// 反序列化数据
 					} else if gateWayConfigMap.ProtocolType == "MODBUS_TCP" {
 						// 创建TCPCommand
@@ -130,7 +146,7 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 							logrus.Info(err)
 							return
 						}
-						err = handleDeviceConnection(gateWayConfigMap.ID, sendData, gateWayConfigMap.Voucher)
+						err = handleDeviceConnection(gateWayConfigMap.ID, sendData, gateWayConfigMap.Voucher, "MODBUS_TCP")
 						if err != nil {
 							logrus.Info(err)
 							return
@@ -144,7 +160,7 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 }
 
 // 处理设备连接
-func handleDeviceConnection(deviceID string, sendData []byte, voucher string) error {
+func handleDeviceConnection(deviceID string, sendData []byte, voucher string, protocolType string) error {
 	// 获取连接
 	c, exists := globaldata.DeviceConnectionMap.Load(deviceID)
 	if !exists {
@@ -157,6 +173,12 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string) er
 	if err != nil {
 		logrus.Info("SetWriteDeadline() failed, err: ", err)
 		return err
+	}
+	regPkg, isTrue := globaldata.GetRegPkgByToken(voucher)
+	if isTrue {
+		globaldata.DeviceRWLock[regPkg].Lock()
+		logrus.Info("获取到锁：", regPkg)
+		defer globaldata.DeviceRWLock[regPkg].Unlock()
 	}
 	logrus.Info("voucher:", voucher, "控制设备请求：", sendData)
 	_, err = conn.Write(sendData)
@@ -171,14 +193,39 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string) er
 		logrus.Info("SetReadDeadline() failed, err: ", err)
 		return err
 	}
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
+	var buf []byte
+	if protocolType == "MODBUS_RTU" {
+		buf, err = ReadModbusRTUResponse(conn)
+	} else if protocolType == "MODBUS_TCP" {
+		buf, err = ReadModbusTCPResponse(conn)
+	}
 	if err != nil {
-		logrus.Warn("读取控制响应数据超时,超时时间为3秒")
-		return nil
-		//return fmt.Errorf("读取失败: %v", err)
+		return fmt.Errorf("读取失败: %v", err)
 	}
 
-	logrus.Info("voucher:", voucher, "控制设备响应：", buf[:n])
+	logrus.Info("voucher:", voucher, "控制设备响应：", buf)
 	return nil
+}
+
+// 根据key、value组装发送
+func PublishRsponse(key string, value interface{}, subDeviceID string) error {
+	dataMap := make(map[string]interface{})
+	dataMap[key] = value
+	payloadMap := map[string]interface{}{
+		"device_id": subDeviceID,
+		"values":    dataMap,
+	}
+	var values []byte
+	// 将payloadMap.values 转为json字符串
+	values, err := json.Marshal(payloadMap["values"])
+	if err != nil {
+		return err
+	}
+	logrus.Info("values:", string(values))
+	payloadMap["values"] = values
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return err
+	}
+	return Publish(string(payload))
 }

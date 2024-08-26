@@ -184,6 +184,9 @@ func (c *CommandRaw) GetWriteCommand(key string, value interface{}, index int) (
 
 // 将modbus返回的数据序列化为json报文
 func (c *CommandRaw) Serialize(resp []byte) (map[string]interface{}, error) {
+	if len(resp) < 4 {
+		return nil, fmt.Errorf("invalid response length: %d", len(resp))
+	}
 	// 检查Modbus异常响应
 	if resp[1] >= byte(0x80) {
 		// 错误码映射

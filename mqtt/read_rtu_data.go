@@ -1,7 +1,6 @@
-package services
+package mqtt
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 )
 
 func ReadModbusRTUResponse(conn net.Conn) ([]byte, error) {
+
 	// 读取前3个字节以确定响应类型和长度
 	header := make([]byte, 3)
 	_, err := io.ReadFull(conn, header)
@@ -65,13 +65,4 @@ func ReadModbusRTUResponse(conn net.Conn) ([]byte, error) {
 	}
 
 	return response, nil
-}
-
-func ReadHeader(reader *bufio.Reader) ([]byte, error) {
-	header, err := reader.Peek(3)
-	if err != nil {
-		return nil, err
-	}
-	_, err = reader.Discard(3)
-	return header, err
 }
