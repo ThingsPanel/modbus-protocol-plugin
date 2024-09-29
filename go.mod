@@ -3,7 +3,7 @@ module github.com/ThingsPanel/modbus-protocol-plugin
 go 1.22
 
 require (
-	github.com/ThingsPanel/tp-protocol-sdk-go v1.2.0
+	github.com/ThingsPanel/tp-protocol-sdk-go v1.1.8
 	github.com/sirupsen/logrus v1.9.3
 )
 

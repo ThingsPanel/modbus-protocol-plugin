@@ -40,8 +40,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
-github.com/ThingsPanel/tp-protocol-sdk-go v1.2.0 h1:yZv59W19bsx+tZaZVGaG6A/XSHLSwZU1yo6UNsIiB7E=
-github.com/ThingsPanel/tp-protocol-sdk-go v1.2.0/go.mod h1:88uDT+0yrKFn96AsT8ayxZUwSo/NRW14b6V/8zPOzQo=
+github.com/ThingsPanel/tp-protocol-sdk-go v1.1.8 h1:KBuT347SOaigtL5m1w1/dcaRmyeYga27xgwtC6ldQEk=
+github.com/ThingsPanel/tp-protocol-sdk-go v1.1.8/go.mod h1:88uDT+0yrKFn96AsT8ayxZUwSo/NRW14b6V/8zPOzQo=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
