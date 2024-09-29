@@ -15,12 +15,11 @@ docker build -t modbus-protocol-plugin:latest .
       - "502:502"
       - "503:503"
     environment:
-      - "MODBUS_THINGSPANEL_ADDRESS=http://172.50.0.2:9999" # 这里的地址是物联网平台的地址
-      - "MODBUS_MQTT_BROKER=172.50.0.5:1883" # 这里的地址是mqtt的地址
+      - "MODBUS_THINGSPANEL_ADDRESS=http://backend:9999" # 这里的地址是物联网平台的地址
+      - "MODBUS_MQTT_BROKER=gmqtt:1883" # 这里的地址是mqtt的地址
       - "MODBUS_MQTT_QOS=0"
     networks:
-      extnetwork:
-        ipv4_address: 172.50.0.7
+      - thingspanel_network
     depends_on:
       - backend
       - gmqtt
