@@ -151,6 +151,12 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 							logrus.Info(err)
 							return
 						}
+						// 返回一次
+						logrus.Info("控制成功，通知设备")
+						err = PublishRsponse(key, value, subDevice.DeviceID)
+						if err != nil {
+							logrus.Info(err)
+						}
 					}
 				}
 			}
@@ -195,9 +201,9 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string, pr
 	}
 	var buf []byte
 	if protocolType == "MODBUS_RTU" {
-		buf, err = ReadModbusRTUResponse(conn)
+		buf, err = ReadModbusRTUResponse(conn, regPkg)
 	} else if protocolType == "MODBUS_TCP" {
-		buf, err = ReadModbusTCPResponse(conn)
+		buf, err = ReadModbusTCPResponse(conn, regPkg)
 	}
 	if err != nil {
 		return fmt.Errorf("读取失败: %v", err)
