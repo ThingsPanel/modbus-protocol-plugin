@@ -16,7 +16,7 @@ func NewSubDeviceFormConfig(formConfigMap map[string]interface{}, subDeviceAddr 
 	// SlaveID
 	var slaveIDFloat float64
 	slaveIDInterface, exists := formConfigMap["SlaveID"]
-	if !exists {
+	if !exists || slaveIDInterface == "" {
 		// 如果 SlaveID 不存在，使用 subDeviceAddr
 		s, err := strconv.ParseFloat(subDeviceAddr, 64)
 		if err != nil {
