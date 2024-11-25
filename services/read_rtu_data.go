@@ -4,123 +4,120 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
-	"io"
 	"net"
 
 	"github.com/sirupsen/logrus"
 )
 
+/*
+逻辑：
+一次请求必然有一次响应。
+在发送请求前，也许缓冲区已经有了多个心跳包，也许没有心跳包。
+程序需要跳过心跳包，来读取响应数据。
+在一次读取的时候也许响应会跟在心跳包后。
+只要有响应，就返回响应。
+ReadModbusRTUResponse方法返回失败会导致连接关闭，所以如果不是连接断开就不能返回错误。
+不做CRC校验
+*/
+
+func isTimeout(err error) bool {
+	if netErr, ok := err.(net.Error); ok {
+		return netErr.Timeout()
+	}
+	return false
+}
+
 func ReadModbusRTUResponse(conn net.Conn, regPkg string) ([]byte, error) {
-	var heartbeatResponse []byte
+	var buffer bytes.Buffer
+	readBuffer := make([]byte, 256)
 
-	// 第一个字节预读
-	firstByte := make([]byte, 1)
-	_, err := io.ReadFull(conn, firstByte)
-	if err != nil {
-		logrus.Warn("读取第一个字节失败:", err)
-		return nil, fmt.Errorf("read failed")
-	}
-
-	// 判断是否可能是心跳包
-	if regPkg != "" && firstByte[0] == regPkg[0] {
-		// 可能是心跳包，继续读取剩余部分
-		expectedBytes, _ := hex.DecodeString(regPkg)
-		if len(expectedBytes) > 1 {
-			remainingBytes := make([]byte, len(expectedBytes)-1)
-			_, err = io.ReadFull(conn, remainingBytes)
-			if err != nil {
-				logrus.Warn("读取心跳包剩余数据失败:", err)
-				return nil, fmt.Errorf("read failed")
-			}
-
-			heartbeatResponse = append(firstByte, remainingBytes...)
-			if bytes.Equal(heartbeatResponse, expectedBytes) {
-				logrus.Debug("成功读取到心跳包响应")
-			}
+	// 最多读取两次
+	for i := 0; i < 2; i++ {
+		n, err := conn.Read(readBuffer)
+		logrus.Info("---------读取数据详情(第", i+1, "次)---------")
+		logrus.Info("读取字节数: ", n)
+		if n > 0 {
+			logrus.Info("数据内容(hex): ", hex.EncodeToString(readBuffer[:n]))
+			logrus.Info("数据内容(bytes): ", readBuffer[:n])
 		}
-
-		// 继续读取 Modbus RTU 响应的第一个字节
-		_, err = io.ReadFull(conn, firstByte)
 		if err != nil {
-			if heartbeatResponse != nil {
-				return heartbeatResponse, nil
+			logrus.Info("读取错误: ", err)
+			logrus.Info("-----------------------------")
+			if !isTimeout(err) {
+				return nil, fmt.Errorf("连接异常: %v", err)
 			}
-			logrus.Warn("读取失败:", err)
-			return nil, fmt.Errorf("read failed")
+			break
+		}
+		logrus.Info("-----------------------------")
+
+		buffer.Write(readBuffer[:n])
+
+		// 尝试解析modbus响应
+		if modbusData := findModbusResponse(buffer.Bytes()); modbusData != nil {
+			return modbusData, nil
+		}
+
+		// 第一次没找到响应且没超时,继续读取
+		if i == 0 && err == nil {
+			continue
 		}
 	}
 
-	// 继续读取剩余的2个字节以确定响应类型和长度
-	remainingHeader := make([]byte, 2)
-	_, err = io.ReadFull(conn, remainingHeader)
-	if err != nil {
-		if heartbeatResponse != nil {
-			return heartbeatResponse, nil
-		}
-		logrus.Warn("读取失败:", err)
-		return nil, fmt.Errorf("read failed")
+	return nil, nil
+}
+
+func findModbusResponse(data []byte) []byte {
+	if len(data) < 5 {
+		return nil
 	}
 
-	// 组合header
-	header := append(firstByte, remainingHeader...)
+	for i := 0; i < len(data)-4; i++ {
+		if data[i] >= 0x30 && data[i] <= 0x39 {
+			continue
+		}
 
-	var length int
+		if !isValidFunctionCode(data[i+1]) {
+			continue
+		}
+
+		respLen, err := calculateResponseLength(data[i:])
+		if err != nil {
+			continue
+		}
+
+		if i+respLen <= len(data) {
+			return data[i : i+respLen]
+		}
+	}
+	return nil
+}
+
+func isValidFunctionCode(code byte) bool {
+	validCodes := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x0F, 0x10}
+	for _, valid := range validCodes {
+		if code == valid {
+			return true
+		}
+	}
+	return false
+}
+
+func calculateResponseLength(header []byte) (int, error) {
 	if header[1]&0x80 != 0 {
-		// 异常响应
-		length = 5 // 从站地址(1) + 功能码(1) + 异常码(1) + CRC(2)
-	} else {
-		// 正常响应
-		switch header[1] {
-		case 0x01, 0x02, 0x03, 0x04:
-			// 读取线圈状态、离散输入状态、保持寄存器或输入寄存器
-			length = int(header[2]) + 5 // 从站地址(1) + 功能码(1) + 字节计数(1) + 数据(N) + CRC(2)
-		case 0x05, 0x06:
-			// 写入单个线圈或单个寄存器
-			length = 8 // 从站地址(1) + 功能码(1) + 地址(2) + 值(2) + CRC(2)
-		case 0x0F, 0x10:
-			// 写入多个线圈或多个寄存器
-			length = 8 // 从站地址(1) + 功能码(1) + 起始地址(2) + 数量(2) + CRC(2)
-		default:
-			// 不支持的功能码，读取并丢弃所有剩余数据
-			discardBuffer := make([]byte, 1024)
-			for {
-				_, err := conn.Read(discardBuffer)
-				if err != nil {
-					if err == io.EOF {
-						break
-					}
-					logrus.Warn("读取不支持的功能码剩余数据失败,跳过:", err)
-					return nil, fmt.Errorf("read failed")
-				}
-			}
-			logrus.Warnf("不支持的功能码: %02X，已丢弃所有剩余数据", header[1])
-			return nil, errors.New("not supported function code")
-		}
+		return 5, nil // 异常响应固定5字节
 	}
 
-	// 分配完整响应的缓冲区
-	response := make([]byte, length)
-	copy(response, header)
-
-	// 读取剩余的字节
-	_, err = io.ReadFull(conn, response[3:])
-	if err != nil {
-		if heartbeatResponse != nil {
-			return heartbeatResponse, nil
-		}
-		logrus.Warn("读取剩余数据失败,跳过:", err)
-		return nil, fmt.Errorf("read failed")
+	switch header[1] {
+	case 0x01, 0x02:
+		return int(header[2]) + 5, nil
+	case 0x03, 0x04:
+		return int(header[2]) + 5, nil
+	case 0x05, 0x06, 0x0F, 0x10:
+		return 8, nil
+	default:
+		return 0, fmt.Errorf("不支持的功能码: %02X", header[1])
 	}
-
-	// 如果有心跳包响应，将其与 Modbus 响应组合
-	if heartbeatResponse != nil {
-		finalResponse := append(heartbeatResponse, response...)
-		return finalResponse, nil
-	}
-
-	return response, nil
 }
 func ReadHeader(reader *bufio.Reader) ([]byte, error) {
 	header, err := reader.Peek(3)

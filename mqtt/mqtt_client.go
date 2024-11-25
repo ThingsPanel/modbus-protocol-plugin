@@ -194,7 +194,7 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string, pr
 
 	// 读取数据
 	// 设置读取超时时间
-	err = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(15 * time.Second))
 	if err != nil {
 		logrus.Info("SetReadDeadline() failed, err: ", err)
 		return err

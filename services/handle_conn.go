@@ -111,12 +111,6 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 }
 func sendDataAndReadResponse(conn net.Conn, data []byte, regPkg string, modbusType string) (int, []byte, error) {
 
-	// 设置写超时时间
-	err := conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
-	if err != nil {
-		logrus.Info("SetWriteDeadline() failed, err: ", err)
-		// return 0, err
-	}
 	// 获取锁
 	if _, exists := globaldata.DeviceRWLock[regPkg]; !exists {
 		globaldata.DeviceRWLock[regPkg] = &sync.Mutex{}
@@ -125,17 +119,25 @@ func sendDataAndReadResponse(conn net.Conn, data []byte, regPkg string, modbusTy
 	logrus.Info("获取到锁：", regPkg)
 	defer globaldata.DeviceRWLock[regPkg].Unlock()
 	logrus.Info("regPkg:", regPkg, " 请求：", data)
+
+	// 设置写超时时间
+	err := conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+	if err != nil {
+		logrus.Info("SetWriteDeadline() failed, err: ", err)
+	}
+
+	// 写入数据
 	_, err = conn.Write(data)
 	if err != nil {
 		return 0, nil, err
 	}
 
 	// 设置读取超时时间
-	err = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
 	if err != nil {
 		logrus.Info("SetReadDeadline() failed, err: ", err)
-		return 0, nil, err
 	}
+
 	var buf []byte
 	if modbusType == "RTU" {
 		buf, err = ReadModbusRTUResponse(conn, regPkg)
