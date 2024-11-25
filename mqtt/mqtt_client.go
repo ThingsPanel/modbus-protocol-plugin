@@ -83,7 +83,7 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 		subDevice = m.(*api.SubDevice)
 	}
 	// 获取设备配置
-	subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(subDevice.ProtocolConfigTemplate)
+	subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(subDevice.ProtocolConfigTemplate, subDevice.SubDeviceAddr)
 	if err != nil {
 		return
 	}

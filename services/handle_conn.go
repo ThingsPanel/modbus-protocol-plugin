@@ -36,7 +36,7 @@ func HandleConn(regPkg, deviceID string) {
 		// 存储子设备id和网关id的映射关系
 		globaldata.SubDeviceIDAndGateWayIDMap.Store(tpSubDevice.DeviceID, deviceID)
 		// 将tp子设备的表单配置转SubDeviceFormConfig
-		subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(tpSubDevice.ProtocolConfigTemplate)
+		subDeviceFormConfig, err := tpconfig.NewSubDeviceFormConfig(tpSubDevice.ProtocolConfigTemplate, tpSubDevice.SubDeviceAddr)
 		if err != nil {
 			logrus.Info(err.Error())
 			continue
@@ -138,12 +138,12 @@ func sendDataAndReadResponse(conn net.Conn, data []byte, regPkg string, modbusTy
 	}
 	var buf []byte
 	if modbusType == "RTU" {
-		buf, err = ReadModbusRTUResponse(conn)
+		buf, err = ReadModbusRTUResponse(conn, regPkg)
 		if err != nil {
 			return 0, nil, err
 		}
 	} else if modbusType == "TCP" {
-		buf, err = ReadModbusTCPResponse(conn)
+		buf, err = ReadModbusTCPResponse(conn, regPkg)
 		if err != nil {
 			return 0, nil, err
 		}

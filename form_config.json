@@ -1,17 +1,5 @@
 [
     {
-        "type": "input",
-        "dataKey": "SlaveID",
-        "label": "从机地址",
-        "placeholder": "请输入设备地址",
-        "validate": {
-            "type": "number",
-            "rules": "/^\\d{1,}$/",
-            "required": true,
-            "message": "设备地址不能为空"
-        }
-    },
-    {
         "type": "table",
         "label": "配置列表",
         "dataKey": "CommandRawList",

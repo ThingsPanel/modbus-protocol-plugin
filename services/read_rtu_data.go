@@ -2,6 +2,8 @@ package services
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -10,14 +12,59 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func ReadModbusRTUResponse(conn net.Conn) ([]byte, error) {
-	// 读取前3个字节以确定响应类型和长度
-	header := make([]byte, 3)
-	_, err := io.ReadFull(conn, header)
+func ReadModbusRTUResponse(conn net.Conn, regPkg string) ([]byte, error) {
+	var heartbeatResponse []byte
+
+	// 第一个字节预读
+	firstByte := make([]byte, 1)
+	_, err := io.ReadFull(conn, firstByte)
 	if err != nil {
-		logrus.Warn("读取失败,跳过:", err)
+		logrus.Warn("读取第一个字节失败:", err)
 		return nil, fmt.Errorf("read failed")
 	}
+
+	// 判断是否可能是心跳包
+	if regPkg != "" && firstByte[0] == regPkg[0] {
+		// 可能是心跳包，继续读取剩余部分
+		expectedBytes, _ := hex.DecodeString(regPkg)
+		if len(expectedBytes) > 1 {
+			remainingBytes := make([]byte, len(expectedBytes)-1)
+			_, err = io.ReadFull(conn, remainingBytes)
+			if err != nil {
+				logrus.Warn("读取心跳包剩余数据失败:", err)
+				return nil, fmt.Errorf("read failed")
+			}
+
+			heartbeatResponse = append(firstByte, remainingBytes...)
+			if bytes.Equal(heartbeatResponse, expectedBytes) {
+				logrus.Debug("成功读取到心跳包响应")
+			}
+		}
+
+		// 继续读取 Modbus RTU 响应的第一个字节
+		_, err = io.ReadFull(conn, firstByte)
+		if err != nil {
+			if heartbeatResponse != nil {
+				return heartbeatResponse, nil
+			}
+			logrus.Warn("读取失败:", err)
+			return nil, fmt.Errorf("read failed")
+		}
+	}
+
+	// 继续读取剩余的2个字节以确定响应类型和长度
+	remainingHeader := make([]byte, 2)
+	_, err = io.ReadFull(conn, remainingHeader)
+	if err != nil {
+		if heartbeatResponse != nil {
+			return heartbeatResponse, nil
+		}
+		logrus.Warn("读取失败:", err)
+		return nil, fmt.Errorf("read failed")
+	}
+
+	// 组合header
+	header := append(firstByte, remainingHeader...)
 
 	var length int
 	if header[1]&0x80 != 0 {
@@ -48,7 +95,7 @@ func ReadModbusRTUResponse(conn net.Conn) ([]byte, error) {
 					return nil, fmt.Errorf("read failed")
 				}
 			}
-			logrus.Warnf("不支持的功能码: %02X，已丢弃所有剩余数据%02X", header[1], discardBuffer)
+			logrus.Warnf("不支持的功能码: %02X，已丢弃所有剩余数据", header[1])
 			return nil, errors.New("not supported function code")
 		}
 	}
@@ -60,13 +107,21 @@ func ReadModbusRTUResponse(conn net.Conn) ([]byte, error) {
 	// 读取剩余的字节
 	_, err = io.ReadFull(conn, response[3:])
 	if err != nil {
+		if heartbeatResponse != nil {
+			return heartbeatResponse, nil
+		}
 		logrus.Warn("读取剩余数据失败,跳过:", err)
 		return nil, fmt.Errorf("read failed")
 	}
 
+	// 如果有心跳包响应，将其与 Modbus 响应组合
+	if heartbeatResponse != nil {
+		finalResponse := append(heartbeatResponse, response...)
+		return finalResponse, nil
+	}
+
 	return response, nil
 }
-
 func ReadHeader(reader *bufio.Reader) ([]byte, error) {
 	header, err := reader.Peek(3)
 	if err != nil {
