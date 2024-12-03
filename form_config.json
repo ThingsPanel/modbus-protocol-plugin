@@ -1,7 +1,7 @@
 [
     {
         "type": "table",
-        "label": "配置列表",
+        "label": "Modbus配置",
         "dataKey": "CommandRawList",
         "array": [
             {
@@ -10,126 +10,126 @@
                 "label": "功能码",
                 "options": [
                     {
-                        "label": "01读线圈状态/05强制单个线圈",
+                        "label": "01/05: 读/写线圈(开关量)",
                         "value": 1
                     },
                     {
-                        "label": "02读输入位状态",
+                        "label": "02: 读输入位状态(开关量只读)",
                         "value": 2
                     },
                     {
-                        "label": "03读保持寄存器/06预置单个寄存器",
+                        "label": "03/06: 读/写保持寄存器(数值)",
                         "value": 3
                     },
                     {
-                        "label": "04读输入寄存器",
+                        "label": "04: 读输入寄存器(数值只读)",
                         "value": 4
                     }
                 ],
-                "placeholder": "请选择功能码",
+                "placeholder": "请选择要读取或写入的数据类型",
                 "validate": {
                     "type": "number",
                     "required": true,
-                    "message": "功能码不能为空"
+                    "message": "请选择功能码"
                 }
             },
             {
                 "type": "input",
                 "dataKey": "Interval",
-                "label": "读取策略(秒)",
-                "placeholder": "请输入时间间隔，单位s",
+                "label": "采集周期（单位：秒）",
+                "placeholder": "请输入数据采集的时间间隔",
                 "validate": {
                     "type": "number",
                     "rules": "/^\\d{1,}$/",
                     "required": true,
-                    "message": "读取策略不能为空"
+                    "message": "采集周期必须为正整数"
                 }
             },
             {
                 "type": "input",
                 "dataKey": "StartingAddress",
-                "label": "起始地址",
-                "placeholder": "请输入起始地址(十进制)",
+                "label": "起始地址（十进制，从0开始）",
+                "placeholder": "请输入寄存器或线圈的起始地址",
                 "validate": {
                     "type": "number",
                     "rules": "/^\\d{1,}$/",
                     "required": true,
-                    "message": "起始地址不能为空"
+                    "message": "起始地址必须为非负整数"
                 }
             },
             {
                 "type": "input",
                 "dataKey": "Quantity",
-                "label": "地址数量/线圈数量",
-                "placeholder": "03功能码输入地址数量/01功能码输入线圈数量",
+                "label": "读取数量",
+                "placeholder": "请输入要读取的连续地址数量（需与数据类型匹配）",
                 "validate": {
                     "type": "number",
                     "rules": "/^\\d{1,}$/",
                     "required": true,
-                    "message": "地址数量不能为空"
+                    "message": "读取数量必须为正整数"
                 }
             },
             {
                 "type": "select",
                 "dataKey": "DataType",
-                "label": "数据类型",
+                "label": "数据类型（功能码01/02选择线圈）",
                 "options": [
                     {
-                        "label": "线圈-1线圈数量",
+                        "label": "线圈（占用1个地址）",
                         "value": "coil"
                     },
                     {
-                        "label": "int16-1地址数量",
+                        "label": "16位整数（占用1个地址）",
                         "value": "int16"
                     },
                     {
-                        "label": "uint16-1地址数量",
+                        "label": "16位无符号整数（占用1个地址）",
                         "value": "uint16"
                     },
                     {
-                        "label": "int32-2地址数量",
+                        "label": "32位整数（占用2个地址）",
                         "value": "int32"
                     },
                     {
-                        "label": "uint32-2地址数量",
+                        "label": "32位无符号整数（占用2个地址）",
                         "value": "uint32"
                     },
                     {
-                        "label": "int64-4地址数量",
+                        "label": "64位整数（占用4个地址）",
                         "value": "int64"
                     },
                     {
-                        "label": "float32-2地址数量",
+                        "label": "32位浮点数（占用2个地址）",
                         "value": "float32"
                     },
                     {
-                        "label": "float64-4地址数量",
+                        "label": "64位浮点数（占用4个地址）",
                         "value": "float64"
                     }
                 ],
-                "placeholder": "请选择数据类型（读写线圈选“线圈”）",
+                "placeholder": "请选择数据存储格式",
                 "validate": {
                     "type": "string",
                     "required": true,
-                    "message": "数据类型不能为空"
+                    "message": "请选择数据类型"
                 }
             },
             {
                 "type": "input",
                 "dataKey": "DataIdentifierListStr",
-                "label": "设备字段（多字段用英文,隔开）",
-                "placeholder": "请输入设备字段（字段数量=地址/数据类型的地址或线圈数量）",
+                "label": "字段标识（多个字段用英文逗号分隔，数量需与读取数据的数量匹配，例如：temp1,temp2,humidity）",
+                "placeholder": "请输入每个数据对应的字段名",
                 "validate": {
                     "type": "string",
                     "required": true,
-                    "message": "设备字段不能为空"
+                    "message": "字段标识不能为空"
                 }
             },
             {
                 "type": "input",
                 "dataKey": "EquationListStr",
-                "label": "公式处理",
-                "placeholder": "例如设备字段是temp:temp*0.01;多个字段（公式可跨字段）的处理公式用英文,隔开",
+                "label": "数值转换公式（多个字段的公式用英文逗号分隔，支持跨字段计算，例如：temp1=temp1*0.1,temp2=temp2+temp1）",
+                "placeholder": "可选，输入数值转换公式",
                 "validate": {
                     "type": "string",
                     "required": false
@@ -138,8 +138,8 @@
             {
                 "type": "input",
                 "dataKey": "DecimalPlacesListStr",
-                "label": "精度处理",
-                "placeholder": "例:2;小数点后位数只填一个代表通用，否则用英文,隔开",
+                "label": "小数位数（单个数字应用于所有字段，多个数字用逗号分隔对应各字段）",
+                "placeholder": "可选，设置显示的小数位数",
                 "validate": {
                     "type": "string",
                     "required": false
@@ -152,19 +152,19 @@
                 "label": "字节序",
                 "options": [
                     {
-                        "label": "大端",
+                        "label": "大端序（高字节在前）",
                         "value": "BIG"
                     },
                     {
-                        "label": "小端",
+                        "label": "小端序（低字节在前）",
                         "value": "LITTLE"
                     }
                 ],
-                "placeholder": "请选择传输字节序",
+                "placeholder": "请选择多字节数据的存储顺序",
                 "validate": {
                     "type": "string",
                     "required": true,
-                    "message": "字节序不能为空"
+                    "message": "请选择字节序"
                 }
             }
         ]
