@@ -1,0 +1,59 @@
+# 工作流名称
+name: Docker Image Build
+
+# 触发方式:
+# - Release触发: 当创建或更新 Release 时自动触发构建
+# - 手动触发: 可以通过 GitHub Actions 页面手动触发
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# 构建任务
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 检出代码
+      - name: 检出代码
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 获取版本号
+      - name: 获取版本号
+        id: get_version
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'latest')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          # 添加仓库名小写转换
+          echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      # 登录各个镜像仓库
+      - name: 登录镜像仓库
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          echo "${{ secrets.JH_PASS }}" | docker login registry.jihulab.com -u ${{ secrets.JH_USER }} --password-stdin
+
+      # 设置 Docker Buildx
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # 构建并推送到 DockerHub 和 GitHub
+      - name: 构建并推送到 GitHub/DockerHub
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            thingspanel/modbus-protocol-plugin:${{ env.VERSION }}
+            ghcr.io/${{ env.OWNER_LC }}/modbus-protocol-plugin:${{ env.VERSION }}
+
+      # 推送到极狐仓库
+      - name: 推送到极狐
+        run: |
+          docker pull ghcr.io/${{ env.OWNER_LC }}/modbus-protocol-plugin:${{ env.VERSION }}
+          docker tag ghcr.io/${{ env.OWNER_LC }}/modbus-protocol-plugin:${{ env.VERSION }} registry.jihulab.com/thingspanel/docker-images/modbus-protocol-plugin:${{ env.VERSION }}
+          docker push registry.jihulab.com/thingspanel/docker-images/modbus-protocol-plugin:${{ env.VERSION }}
