@@ -128,7 +128,7 @@
             {
                 "type": "input",
                 "dataKey": "EquationListStr",
-                "label": "数值转换公式（多个字段的公式用英文逗号分隔，支持跨字段计算，例如：temp1=temp1*0.1,temp2=temp2+temp1）",
+                "label": "数值转换公式（多个字段的公式用英文逗号分隔，支持跨字段计算，例如：temp,temp1*10,temp2+temp1）",
                 "placeholder": "可选，输入数值转换公式",
                 "validate": {
                     "type": "string",
