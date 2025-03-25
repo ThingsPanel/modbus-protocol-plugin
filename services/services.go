@@ -2,6 +2,8 @@ package services
 
 import (
 	"net"
+	"strings"
+	"sync"
 
 	httpclient "github.com/ThingsPanel/modbus-protocol-plugin/http_client"
 	"github.com/sirupsen/logrus"
@@ -13,6 +15,12 @@ import (
 
 // 定义全局的conn管道
 var connChan = make(chan net.Conn)
+
+// 简单的IP限制
+var (
+	blockedIPs = make(map[string]bool)
+	ipMutex    = &sync.Mutex{}
+)
 
 func Start() {
 	// 启动处理连接的goroutine
@@ -34,6 +42,17 @@ func startServer() {
 		conn, err := listen.Accept() // 监听客户端的连接请求
 		if err != nil {
 			logrus.Info("Accept() failed, err: ", err)
+			continue
+		}
+
+		// 检查IP是否被限制
+		clientIP := strings.Split(conn.RemoteAddr().String(), ":")[0]
+		ipMutex.Lock()
+		blocked := blockedIPs[clientIP]
+		ipMutex.Unlock()
+
+		if blocked {
+			conn.Close()
 			continue
 		}
 
@@ -81,7 +100,16 @@ func verifyConnection(conn net.Conn) {
 	var buf [1024]byte
 	n, err := conn.Read(buf[:])
 	if err != nil {
-		logrus.Info("Read() failed, err: ", err)
+		// 如果是连接重置错误，将IP加入黑名单
+		if strings.Contains(err.Error(), "connection reset by peer") {
+			clientIP := strings.Split(conn.RemoteAddr().String(), ":")[0]
+			ipMutex.Lock()
+			blockedIPs[clientIP] = true
+			ipMutex.Unlock()
+			logrus.Info("IP已被限制: ", clientIP)
+		} else {
+			logrus.Info("Read() failed, err: ", err)
+		}
 		conn.Close()
 		return
 	}
