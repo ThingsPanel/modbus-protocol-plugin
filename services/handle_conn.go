@@ -25,7 +25,6 @@ import (
 
 // HandleConn 处理单个连接
 func HandleConn(regPkg, deviceID string) {
-
 	// 获取网关配置
 	m, _ := globaldata.GateWayConfigMap.Load(deviceID)
 	gatewayConfig := m.(*api.DeviceConfigResponseData)
@@ -109,8 +108,29 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 		time.Sleep(time.Duration(commandRaw.Interval) * time.Second)
 	}
 }
-func sendDataAndReadResponse(conn net.Conn, data []byte, regPkg string, modbusType string) (int, []byte, error) {
 
+// clearBuffer 清空连接缓冲区
+func clearBuffer(conn net.Conn) error {
+	buf := make([]byte, 1024)
+	for {
+		// 设置读取超时时间为100ms
+		err := conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		if err != nil {
+			return err
+		}
+
+		_, err = conn.Read(buf)
+		if err != nil {
+			// 如果是超时错误，说明缓冲区已清空
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+func sendDataAndReadResponse(conn net.Conn, data []byte, regPkg string, modbusType string) (int, []byte, error) {
 	// 获取锁
 	if _, exists := globaldata.DeviceRWLock[regPkg]; !exists {
 		globaldata.DeviceRWLock[regPkg] = &sync.Mutex{}
@@ -119,6 +139,11 @@ func sendDataAndReadResponse(conn net.Conn, data []byte, regPkg string, modbusTy
 	logrus.Info("获取到锁：", regPkg)
 	defer globaldata.DeviceRWLock[regPkg].Unlock()
 	logrus.Info("regPkg:", regPkg, " 请求：", data)
+
+	// 清空缓冲区
+	if err := clearBuffer(conn); err != nil {
+		logrus.Info("清空缓冲区失败:", err)
+	}
 
 	// 设置写超时时间
 	err := conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
@@ -226,7 +251,6 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 
 func sendTCPDataAndProcessResponse(conn net.Conn, data []byte, TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, tpSubDevice *api.SubDevice) (bool, error) {
 	n, buf, err := sendDataAndReadResponse(conn, data, regPkg, "TCP")
-
 	if err != nil {
 		return true, err
 	}
