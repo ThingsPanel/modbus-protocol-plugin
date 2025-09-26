@@ -22,7 +22,12 @@ var (
 	ipMutex    = &sync.Mutex{}
 )
 
+// 全局认证限流器
+var authLimiter *AuthLimiter
+
 func Start() {
+	// 初始化认证限流器
+	authLimiter = NewAuthLimiter()
 	// 启动处理连接的goroutine
 	go handleChanConnections()
 	// 启动服务
@@ -96,13 +101,24 @@ func CloseConnection(conn net.Conn, regPkg string) {
 
 // 验证连接并继续处理数据
 func verifyConnection(conn net.Conn) {
+	clientIP := strings.Split(conn.RemoteAddr().String(), ":")[0]
+
+	// 检查IP是否被认证限流
+	if authLimiter.IsBlocked(clientIP) {
+		// 限制日志输出频率：每分钟最多1条
+		if authLimiter.ShouldLogBlock(clientIP) {
+			logrus.Warnf("IP认证被限流，连接已拒绝: %s", clientIP)
+		}
+		conn.Close()
+		return
+	}
+
 	// 读取客户端发送的数据
 	var buf [1024]byte
 	n, err := conn.Read(buf[:])
 	if err != nil {
 		// 如果是连接重置错误，将IP加入黑名单
 		if strings.Contains(err.Error(), "connection reset by peer") {
-			clientIP := strings.Split(conn.RemoteAddr().String(), ":")[0]
 			ipMutex.Lock()
 			blockedIPs[clientIP] = true
 			ipMutex.Unlock()
@@ -121,11 +137,17 @@ func verifyConnection(conn net.Conn) {
 	// 读取设备配置
 	tpGatewayConfig, err := httpclient.GetDeviceConfig(voucher, "")
 	if err != nil {
+		// 认证失败，记录限流
+		authLimiter.RecordFailure(clientIP)
 		// 获取设备配置失败，请检查连接包是否正确
 		logrus.Error(err)
 		conn.Close()
 		return
 	}
+
+	// 认证成功，清除限流记录
+	authLimiter.RecordSuccess(clientIP)
+
 	logrus.Info("获取设备配置成功：", tpGatewayConfig)
 	// 将平台网关的配置存入全局变量
 	globaldata.GateWayConfigMap.Store(tpGatewayConfig.Data.ID, &tpGatewayConfig.Data)

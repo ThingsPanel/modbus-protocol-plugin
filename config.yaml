@@ -22,3 +22,9 @@ thingspanel:
 log: 
   # 日志级别 debug, info, warn, error, fatal, panic
   level: debug
+
+auth_limiter:
+  enabled: true
+  failure_threshold: 3
+  block_duration: 3m
+  cleanup_interval: 1h
