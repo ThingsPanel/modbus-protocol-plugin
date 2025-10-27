@@ -152,12 +152,20 @@
                 "label": "字节序",
                 "options": [
                     {
-                        "label": "大端序（高字节在前）",
+                        "label": "大端序（ABCD）",
                         "value": "BIG"
                     },
                     {
-                        "label": "小端序（低字节在前）",
+                        "label": "小端序（DCBA）",
                         "value": "LITTLE"
+                    },
+                    {
+                        "label": "字节交换（BADC）",
+                        "value": "BADC"
+                    },
+                    {
+                        "label": "字寄存器交换（CDAB）",
+                        "value": "CDAB"
                     }
                 ],
                 "placeholder": "请选择多字节数据的存储顺序",

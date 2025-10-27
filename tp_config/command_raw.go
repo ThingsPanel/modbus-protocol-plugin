@@ -127,39 +127,21 @@ func (c *CommandRaw) GetWriteCommand(key string, value interface{}, index int) (
 	case "int32":
 		startingAddress = c.StartingAddress + uint16(index)*4
 		data = make([]byte, 4)
-		if c.Endianess == "LITTLE" {
-			binary.LittleEndian.PutUint32(data, uint32(value.(int32)))
-		} else {
-			binary.BigEndian.PutUint32(data, uint32(value.(int32)))
-		}
+		c.encodeUint32WithEndianess(data, uint32(value.(int32)))
 	case "uint32":
 		startingAddress = c.StartingAddress + uint16(index)*4
 		data = make([]byte, 4)
-		if c.Endianess == "LITTLE" {
-			binary.LittleEndian.PutUint32(data, uint32(value.(int32)))
-		} else {
-			binary.BigEndian.PutUint32(data, uint32(value.(int32)))
-		}
+		c.encodeUint32WithEndianess(data, uint32(value.(int32)))
 	case "float32":
 		startingAddress = c.StartingAddress + uint16(index)*4
 		data = make([]byte, 4)
-		if c.Endianess == "LITTLE" {
-			bits := math.Float32bits(float32(value.(float64)))
-			binary.LittleEndian.PutUint32(data, bits)
-		} else {
-			bits := math.Float32bits(float32(value.(float64)))
-			binary.BigEndian.PutUint32(data, bits)
-		}
+		bits := math.Float32bits(float32(value.(float64)))
+		c.encodeUint32WithEndianess(data, bits)
 	case "float64":
 		startingAddress = c.StartingAddress + uint16(index)*8
 		data = make([]byte, 8)
-		if c.Endianess == "LITTLE" {
-			bits := math.Float64bits(value.(float64))
-			binary.LittleEndian.PutUint64(data, bits)
-		} else {
-			bits := math.Float64bits(value.(float64))
-			binary.BigEndian.PutUint64(data, bits)
-		}
+		bits := math.Float64bits(value.(float64))
+		c.encodeUint64WithEndianess(data, bits)
 	case "coil":
 		startingAddress = c.StartingAddress + uint16(index)
 
@@ -221,19 +203,17 @@ func (c *CommandRaw) Serialize(resp []byte) (map[string]interface{}, error) {
 			val = float64(byteOrder.Uint16(data[byteIndex : byteIndex+2]))
 			byteIndex += 2
 		case "int32":
-			val = float64(int32(byteOrder.Uint32(data[byteIndex : byteIndex+4])))
+			val = float64(int32(c.parseUint32WithEndianess(data[byteIndex : byteIndex+4])))
 			byteIndex += 4
 		case "uint32":
-			val = float64(byteOrder.Uint32(data[byteIndex : byteIndex+4]))
+			val = float64(c.parseUint32WithEndianess(data[byteIndex : byteIndex+4]))
 			byteIndex += 4
 		case "float32":
-			var floatVal float32
-			bits := byteOrder.Uint32(data[byteIndex : byteIndex+4])
-			floatVal = math.Float32frombits(bits)
-			val = float64(floatVal)
+			bits := c.parseUint32WithEndianess(data[byteIndex : byteIndex+4])
+			val = float64(math.Float32frombits(bits))
 			byteIndex += 4
 		case "float64":
-			val = math.Float64frombits(byteOrder.Uint64(data[byteIndex : byteIndex+8]))
+			val = math.Float64frombits(c.parseUint64WithEndianess(data[byteIndex : byteIndex+8]))
 			byteIndex += 8
 		case "coil":
 			// Assuming each coil is a single bit and we may need to read multiple coils
@@ -315,4 +295,102 @@ func (c *CommandRaw) Serialize(resp []byte) (map[string]interface{}, error) {
 	}
 
 	return values, nil
+}
+
+// parseUint32WithEndianess 根据字节序解析 4 字节数据（32位）
+func (c *CommandRaw) parseUint32WithEndianess(data []byte) uint32 {
+	switch c.Endianess {
+	case "BIG": // ABCD
+		return binary.BigEndian.Uint32(data)
+	case "LITTLE": // DCBA
+		return binary.LittleEndian.Uint32(data)
+	case "BADC": // Byte Swap - 每个寄存器内字节交换
+		// [Byte2 Byte1][Byte4 Byte3]
+		return uint32(data[1])<<24 | uint32(data[0])<<16 | uint32(data[3])<<8 | uint32(data[2])
+	case "CDAB": // Word Swap + Byte Swap - 寄存器交换
+		// [Byte3 Byte4][Byte1 Byte2]
+		return uint32(data[2])<<24 | uint32(data[3])<<16 | uint32(data[0])<<8 | uint32(data[1])
+	default:
+		// 默认使用大端
+		return binary.BigEndian.Uint32(data)
+	}
+}
+
+// parseUint64WithEndianess 根据字节序解析 8 字节数据（64位）
+func (c *CommandRaw) parseUint64WithEndianess(data []byte) uint64 {
+	switch c.Endianess {
+	case "BIG": // ABCDEFGH
+		return binary.BigEndian.Uint64(data)
+	case "LITTLE": // HGFEDCBA
+		return binary.LittleEndian.Uint64(data)
+	case "BADC": // Byte Swap - 每个寄存器内字节交换
+		// [Byte2 Byte1][Byte4 Byte3][Byte6 Byte5][Byte8 Byte7]
+		return uint64(data[1])<<56 | uint64(data[0])<<48 | uint64(data[3])<<40 | uint64(data[2])<<32 |
+			uint64(data[5])<<24 | uint64(data[4])<<16 | uint64(data[7])<<8 | uint64(data[6])
+	case "CDAB": // Word Swap + Byte Swap - 寄存器交换
+		// [Byte3 Byte4][Byte1 Byte2][Byte7 Byte8][Byte5 Byte6]
+		return uint64(data[2])<<56 | uint64(data[3])<<48 | uint64(data[0])<<40 | uint64(data[1])<<32 |
+			uint64(data[6])<<24 | uint64(data[7])<<16 | uint64(data[4])<<8 | uint64(data[5])
+	default:
+		// 默认使用大端
+		return binary.BigEndian.Uint64(data)
+	}
+}
+
+// encodeUint32WithEndianess 根据字节序编码 4 字节数据（32位）
+func (c *CommandRaw) encodeUint32WithEndianess(data []byte, value uint32) {
+	switch c.Endianess {
+	case "BIG": // ABCD
+		binary.BigEndian.PutUint32(data, value)
+	case "LITTLE": // DCBA
+		binary.LittleEndian.PutUint32(data, value)
+	case "BADC": // Byte Swap - 每个寄存器内字节交换
+		// [Byte2 Byte1][Byte4 Byte3]
+		data[0] = byte(value >> 16)
+		data[1] = byte(value >> 24)
+		data[2] = byte(value)
+		data[3] = byte(value >> 8)
+	case "CDAB": // Word Swap + Byte Swap - 寄存器交换
+		// [Byte3 Byte4][Byte1 Byte2]
+		data[0] = byte(value >> 8)
+		data[1] = byte(value)
+		data[2] = byte(value >> 24)
+		data[3] = byte(value >> 16)
+	default:
+		// 默认使用大端
+		binary.BigEndian.PutUint32(data, value)
+	}
+}
+
+// encodeUint64WithEndianess 根据字节序编码 8 字节数据（64位）
+func (c *CommandRaw) encodeUint64WithEndianess(data []byte, value uint64) {
+	switch c.Endianess {
+	case "BIG": // ABCDEFGH
+		binary.BigEndian.PutUint64(data, value)
+	case "LITTLE": // HGFEDCBA
+		binary.LittleEndian.PutUint64(data, value)
+	case "BADC": // Byte Swap - 每个寄存器内字节交换
+		// [Byte2 Byte1][Byte4 Byte3][Byte6 Byte5][Byte8 Byte7]
+		data[0] = byte(value >> 48)
+		data[1] = byte(value >> 56)
+		data[2] = byte(value >> 32)
+		data[3] = byte(value >> 40)
+		data[4] = byte(value >> 16)
+		data[5] = byte(value >> 24)
+		data[6] = byte(value)
+		data[7] = byte(value >> 8)
+	case "CDAB": // Word Swap + Byte Swap - 寄存器交换
+		// [Byte3 Byte4][Byte1 Byte2][Byte7 Byte8][Byte5 Byte6]
+		data[0] = byte(value >> 40)
+		data[1] = byte(value >> 32)
+		data[2] = byte(value >> 56)
+		data[3] = byte(value >> 48)
+		data[4] = byte(value >> 8)
+		data[5] = byte(value)
+		data[6] = byte(value >> 24)
+		data[7] = byte(value >> 16)
+	default:
+		// 默认使用大端
+		binary.BigEndian.PutUint64(data, value)
+	}
 }

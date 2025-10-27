@@ -12,8 +12,10 @@ import (
 type EndianessType string
 
 const (
-	BigEndian    EndianessType = "BIG"
-	LittleEndian EndianessType = "LITTLE"
+	BigEndian      EndianessType = "BIG"    // ABCD - 标准大端
+	LittleEndian   EndianessType = "LITTLE" // DCBA - 标准小端
+	ByteSwap       EndianessType = "BADC"   // BADC - 字节交换
+	WordByteSwap   EndianessType = "CDAB"   // CDAB - 字寄存器交换
 )
 
 type MasterCommand struct {
