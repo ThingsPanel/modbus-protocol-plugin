@@ -82,10 +82,21 @@ func findModbusResponse(data []byte) []byte {
 }
 
 func isValidFunctionCode(code byte) bool {
+	// 检查正常功能码
 	validCodes := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x0F, 0x10}
 	for _, valid := range validCodes {
 		if code == valid {
 			return true
+		}
+	}
+	// 检查异常功能码（正常功能码 + 0x80）
+	// 例如：0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x8F, 0x90
+	if code&0x80 != 0 {
+		normalCode := code & 0x7F // 去掉最高位得到原功能码
+		for _, valid := range validCodes {
+			if normalCode == valid {
+				return true
+			}
 		}
 	}
 	return false

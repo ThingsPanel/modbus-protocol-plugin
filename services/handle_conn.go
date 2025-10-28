@@ -49,6 +49,10 @@ func HandleConn(regPkg, deviceID string) {
 					endianess = modbus.BigEndian
 				} else if commandRaw.Endianess == "LITTLE" {
 					endianess = modbus.LittleEndian
+				} else if commandRaw.Endianess == "BADC" {
+					endianess = modbus.ByteSwap
+				} else if commandRaw.Endianess == "CDAB" {
+					endianess = modbus.WordByteSwap
 				} else {
 					// 默认大端
 					endianess = modbus.BigEndian
@@ -62,6 +66,10 @@ func HandleConn(regPkg, deviceID string) {
 					endianess = modbus.BigEndian
 				} else if commandRaw.Endianess == "LITTLE" {
 					endianess = modbus.LittleEndian
+				} else if commandRaw.Endianess == "BADC" {
+					endianess = modbus.ByteSwap
+				} else if commandRaw.Endianess == "CDAB" {
+					endianess = modbus.WordByteSwap
 				} else {
 					// 默认大端
 					endianess = modbus.BigEndian

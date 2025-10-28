@@ -48,13 +48,10 @@ func (c *MasterCommand) Serialize() ([]byte, error) {
 	switch c.FunctionCode {
 	case 0x01, 0x02, 0x03, 0x04: // Read Coils, Read Discrete Inputs, Read Holding Registers, Read Input Registers
 		buf.WriteByte(c.FunctionCode)
-		if c.Endianess == BigEndian {
-			binary.Write(&buf, binary.BigEndian, c.StartingAddress)
-			binary.Write(&buf, binary.BigEndian, c.Quantity)
-		} else {
-			binary.Write(&buf, binary.LittleEndian, c.StartingAddress)
-			binary.Write(&buf, binary.LittleEndian, c.Quantity)
-		}
+		// Modbus 协议标准：地址和数量字段始终使用大端序（网络字节序）
+		// Endianess 配置只影响数据部分的字节序，不影响地址和数量字段
+		binary.Write(&buf, binary.BigEndian, c.StartingAddress)
+		binary.Write(&buf, binary.BigEndian, c.Quantity)
 
 	case 0x05: // Write Single Coil ValueData为空返回错误
 		buf.WriteByte(c.FunctionCode)
@@ -72,31 +69,25 @@ func (c *MasterCommand) Serialize() ([]byte, error) {
 			return nil, fmt.Errorf("ValueData is not empty")
 		}
 		buf.WriteByte(c.FunctionCode)
-
-		if c.Endianess == BigEndian {
-			binary.Write(&buf, binary.BigEndian, c.StartingAddress)
-			binary.Write(&buf, binary.BigEndian, c.ValueData)
-		} else {
-			binary.Write(&buf, binary.LittleEndian, c.StartingAddress)
-			binary.Write(&buf, binary.LittleEndian, c.ValueData)
-		}
+		// Modbus 协议标准：地址字段始终使用大端序
+		binary.Write(&buf, binary.BigEndian, c.StartingAddress)
+		// 数据字段直接写入（已在上层按字节序编码好）
+		buf.Write(c.ValueData)
 
 	// 我将这两个功能码合并，因为它们的序列化逻辑是相同的
 	case 0x0F, 0x10: // Write Multiple Coils, Write Multiple Registers
 		if c.ValueData == nil {
-			return nil, fmt.Errorf("ValueData is not empty")
+			return nil, fmt.Errorf("ValueData is empty")
 		}
 		buf.WriteByte(c.FunctionCode)
-		if c.Endianess == BigEndian {
-			binary.Write(&buf, binary.BigEndian, c.StartingAddress)
-			binary.Write(&buf, binary.BigEndian, c.ValueData)
-		} else {
-			binary.Write(&buf, binary.LittleEndian, c.StartingAddress)
-			binary.Write(&buf, binary.LittleEndian, c.ValueData)
-		}
-		// 这里我们假设Data字段是[]byte类型并已经定义在Command结构中
-		buf.WriteByte(byte(len(c.Data)))
-		buf.Write(c.Data)
+		// 写入起始地址（固定大端序）
+		binary.Write(&buf, binary.BigEndian, c.StartingAddress)
+		// 写入数量（寄存器数量或线圈数量）
+		binary.Write(&buf, binary.BigEndian, c.Quantity)
+		// 写入字节计数
+		buf.WriteByte(byte(len(c.ValueData)))
+		// 写入数据
+		buf.Write(c.ValueData)
 
 	default:
 		return nil, fmt.Errorf("unsupported function code: %x", c.FunctionCode)

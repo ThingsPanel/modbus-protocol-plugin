@@ -94,54 +94,76 @@ func (c *CommandRaw) GetWriteCommand(key string, value interface{}, index int) (
 	var functionCode byte
 	var startingAddress uint16
 	var data []byte
-	// 找到
-	switch c.FunctionCode {
-	case 0x01:
-		functionCode = 0x05
-	case 0x02:
-		functionCode = 0x05
-	case 0x03:
-		functionCode = 0x06
-	case 0x04:
-		functionCode = 0x06
-	}
+
 	// 根据c.StartingAddress、index和c.DataType
 	// 计算出写报文的起始地址和数据
 	switch c.DataType {
 	case "int16":
-		startingAddress = c.StartingAddress + uint16(index)*2
+		startingAddress = c.StartingAddress + uint16(index)
 		data = make([]byte, 2)
 		if c.Endianess == "LITTLE" {
 			binary.LittleEndian.PutUint16(data, uint16(value.(float64)))
 		} else {
 			binary.BigEndian.PutUint16(data, uint16(value.(float64)))
+		}
+		// 单寄存器数据使用功能码 0x06
+		if c.FunctionCode == 0x03 || c.FunctionCode == 0x04 {
+			functionCode = 0x06
 		}
 	case "uint16":
-		startingAddress = c.StartingAddress + uint16(index)*2
+		startingAddress = c.StartingAddress + uint16(index)
 		data = make([]byte, 2)
 		if c.Endianess == "LITTLE" {
 			binary.LittleEndian.PutUint16(data, uint16(value.(float64)))
 		} else {
 			binary.BigEndian.PutUint16(data, uint16(value.(float64)))
 		}
+		// 单寄存器数据使用功能码 0x06
+		if c.FunctionCode == 0x03 || c.FunctionCode == 0x04 {
+			functionCode = 0x06
+		}
 	case "int32":
-		startingAddress = c.StartingAddress + uint16(index)*4
+		startingAddress = c.StartingAddress + uint16(index)*2
 		data = make([]byte, 4)
-		c.encodeUint32WithEndianess(data, uint32(value.(int32)))
+		c.encodeUint32WithEndianess(data, uint32(int32(value.(float64))))
+		// 多寄存器数据使用功能码 0x10
+		if c.FunctionCode == 0x03 || c.FunctionCode == 0x04 {
+			functionCode = 0x10
+		}
 	case "uint32":
-		startingAddress = c.StartingAddress + uint16(index)*4
+		startingAddress = c.StartingAddress + uint16(index)*2
 		data = make([]byte, 4)
-		c.encodeUint32WithEndianess(data, uint32(value.(int32)))
-	case "float32":
+		c.encodeUint32WithEndianess(data, uint32(value.(float64)))
+		// 多寄存器数据使用功能码 0x10
+		if c.FunctionCode == 0x03 || c.FunctionCode == 0x04 {
+			functionCode = 0x10
+		}
+	case "int64":
 		startingAddress = c.StartingAddress + uint16(index)*4
+		data = make([]byte, 8)
+		c.encodeUint64WithEndianess(data, uint64(int64(value.(float64))))
+		// 多寄存器数据使用功能码 0x10
+		if c.FunctionCode == 0x03 || c.FunctionCode == 0x04 {
+			functionCode = 0x10
+		}
+	case "float32":
+		startingAddress = c.StartingAddress + uint16(index)*2
 		data = make([]byte, 4)
 		bits := math.Float32bits(float32(value.(float64)))
 		c.encodeUint32WithEndianess(data, bits)
+		// 多寄存器数据使用功能码 0x10
+		if c.FunctionCode == 0x03 || c.FunctionCode == 0x04 {
+			functionCode = 0x10
+		}
 	case "float64":
-		startingAddress = c.StartingAddress + uint16(index)*8
+		startingAddress = c.StartingAddress + uint16(index)*4
 		data = make([]byte, 8)
 		bits := math.Float64bits(value.(float64))
 		c.encodeUint64WithEndianess(data, bits)
+		// 多寄存器数据使用功能码 0x10
+		if c.FunctionCode == 0x03 || c.FunctionCode == 0x04 {
+			functionCode = 0x10
+		}
 	case "coil":
 		startingAddress = c.StartingAddress + uint16(index)
 
@@ -158,6 +180,10 @@ func (c *CommandRaw) GetWriteCommand(key string, value interface{}, index int) (
 		} else {
 			// 返回无效值错误或其他错误处理逻辑
 			return functionCode, startingAddress, data, fmt.Errorf("invalid coil value: %f", val)
+		}
+		// 线圈使用功能码 0x05
+		if c.FunctionCode == 0x01 || c.FunctionCode == 0x02 {
+			functionCode = 0x05
 		}
 	}
 	return functionCode, startingAddress, data, nil

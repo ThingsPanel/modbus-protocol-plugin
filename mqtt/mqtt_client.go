@@ -107,7 +107,9 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 					}
 					if gateWayConfigMap.ProtocolType == "MODBUS_RTU" {
 						// 创建RTUCommand
-						RTUCommand := modbus.NewRTUCommand(subDeviceFormConfig.SlaveID, functionCode, startAddress, 1, modbus.EndianessType(commandRaw.Endianess))
+						// 根据数据长度计算寄存器数量（每个寄存器2字节）
+						quantity := uint16(len(data) / 2)
+						RTUCommand := modbus.NewRTUCommand(subDeviceFormConfig.SlaveID, functionCode, startAddress, quantity, modbus.EndianessType(commandRaw.Endianess))
 						RTUCommand.ValueData = data
 
 						sendData, err := RTUCommand.Serialize()
@@ -139,7 +141,9 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 						// 反序列化数据
 					} else if gateWayConfigMap.ProtocolType == "MODBUS_TCP" {
 						// 创建TCPCommand
-						TCPCommand := modbus.NewTCPCommand(subDeviceFormConfig.SlaveID, functionCode, startAddress, 1, modbus.EndianessType(commandRaw.Endianess))
+						// 根据数据长度计算寄存器数量（每个寄存器2字节）
+						quantity := uint16(len(data) / 2)
+						TCPCommand := modbus.NewTCPCommand(subDeviceFormConfig.SlaveID, functionCode, startAddress, quantity, modbus.EndianessType(commandRaw.Endianess))
 						TCPCommand.ValueData = data
 						sendData, err := TCPCommand.Serialize()
 						if err != nil {
