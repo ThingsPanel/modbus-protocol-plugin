@@ -181,13 +181,16 @@ func (c *CommandRaw) Serialize(resp []byte) (map[string]interface{}, error) {
 	values := make(map[string]interface{})
 
 	// Choose the right byte order based on the Endianess attribute
+	// 注意：BADC 和 CDAB 仅影响多寄存器数据（int32/uint32/float32/int64/float64）
+	// 对于单寄存器数据（int16/uint16），BADC 和 CDAB 使用大端序
 	var byteOrder binary.ByteOrder
 	if c.Endianess == "LITTLE" {
 		byteOrder = binary.LittleEndian
-	} else if c.Endianess == "BIG" {
+	} else if c.Endianess == "BIG" || c.Endianess == "BADC" || c.Endianess == "CDAB" {
+		// BADC 和 CDAB 对单寄存器不生效，使用大端序
 		byteOrder = binary.BigEndian
 	} else {
-		return nil, fmt.Errorf("unknown endianess specified")
+		return nil, fmt.Errorf("unknown endianess specified: %s", c.Endianess)
 	}
 
 	dataIds := strings.Split(c.DataIdetifierListStr, ",")
