@@ -24,7 +24,19 @@ log:
   level: debug
 
 auth_limiter:
-  enabled: true
-  failure_threshold: 3
-  block_duration: 3m
-  cleanup_interval: 1h
+  enabled: true # 是否启用限流机制
+  failure_threshold: 3 # 失败阈值
+  block_duration: 3m # 阻塞时间
+  cleanup_interval: 1h # 清理间隔时间
+
+# 排空机制配置（解决串读问题）
+flush_mechanism:
+  enabled: true # 是否启用排空机制
+  silence_period: 200ms # 静默期时间，超时后持续读取直到静默期超过此时间
+
+# 重试机制配置
+retry_mechanism:
+  enabled: true # 是否启用重试机制
+  max_retries: 1 # 最大重试次数
+  retry_interval: 300ms # 重试间隔时间
+  backoff_multiplier: 1.5 # 退避倍数（指数退避）

@@ -26,15 +26,15 @@ var DeviceRWLock = map[string]*sync.Mutex{}
 
 // modbus错误码映射
 var ModbusErrorMap = map[byte]string{
-	0x01: "Illegal function(非法功能)",
-	0x02: "Illegal data address(非法数据地址)",
-	0x03: "Illegal data value(非法数据值)",
-	0x04: "Slave device failure(从站设备故障)",
-	0x05: "Acknowledge(应答)",
-	0x06: "Slave device busy(从站设备忙)",
-	0x08: "Memory parity error(存储器奇偶校验错误)",
-	0x0A: "Gateway path unavailable(网关路径不可用)",
-	0x0B: "Gateway target device failed to respond(网关目标设备未响应)",
+	0x01: "Illegal function",
+	0x02: "Illegal data address",
+	0x03: "Illegal data value",
+	0x04: "Slave device failure",
+	0x05: "Acknowledge",
+	0x06: "Slave device busy",
+	0x08: "Memory parity error",
+	0x0A: "Gateway path unavailable",
+	0x0B: "Gateway target device failed to respond",
 }
 
 // modbus错误码方法，返回一个错误说明
@@ -42,7 +42,7 @@ func GetModbusErrorDesc(code byte) string {
 	if desc, ok := ModbusErrorMap[code]; ok {
 		return desc
 	}
-	return "Unknown error:未知错误"
+	return "Unknown error"
 }
 
 // 通过子设备ID获取网关配置

@@ -213,6 +213,19 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string, pr
 		return fmt.Errorf("读取失败: %v", err)
 	}
 
+	// 检查是否是Modbus异常响应
+	modbusType := "RTU"
+	if protocolType == "MODBUS_TCP" {
+		modbusType = "TCP"
+	}
+	isException, exceptionCode, functionCode := modbus.ParseModbusExceptionResponse(buf, modbusType)
+	if isException {
+		desc := globaldata.GetModbusErrorDesc(exceptionCode)
+		errMsg := fmt.Sprintf("Modbus异常响应: function_code=0x%02X, exception_code=0x%02X, %s", functionCode, exceptionCode, desc)
+		logrus.Warn("voucher:", voucher, "控制设备失败:", errMsg)
+		return fmt.Errorf("控制失败: %s", errMsg)
+	}
+
 	logrus.Info("voucher:", voucher, "控制设备响应：", buf)
 	return nil
 }
