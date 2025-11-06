@@ -79,20 +79,27 @@ func ClassifyError(err error) *ModbusError {
 		return nil
 	}
 
-	errStr := err.Error()
-
-	// 检查是否是连接关闭错误
-	if errors.Is(err, net.ErrClosed) || strings.Contains(errStr, "use of closed network connection") {
-		return NewModbusError(ErrorTypeConnection, 0, "Connection closed", err)
+	// 如果已经是 ModbusError，直接返回（避免重复分类导致类型丢失）
+	if modbusErr, ok := err.(*ModbusError); ok {
+		return modbusErr
 	}
 
-	// 检查是否是网络错误
-	if netErr, ok := err.(net.Error); ok {
+	errStr := err.Error()
+
+	// 优先检查是否是网络错误（使用errors.As解包错误链，处理被fmt.Errorf包装的错误）
+	var netErr net.Error
+	if errors.As(err, &netErr) {
 		if netErr.Timeout() {
 			return NewModbusError(ErrorTypeTimeout, 0, "Read response timeout", err)
 		}
-		// 其他网络错误视为连接错误
+		// 其他网络错误（包括连接断开、连接重置等）都视为连接错误
+		// TCP连接断开时，conn.Read()/conn.Write()会返回网络错误，Go会自动处理跨平台差异
 		return NewModbusError(ErrorTypeConnection, 0, "Network connection error", err)
+	}
+
+	// 检查是否是连接关闭错误
+	if errors.Is(err, net.ErrClosed) {
+		return NewModbusError(ErrorTypeConnection, 0, "Connection closed", err)
 	}
 
 	// 检查是否是Modbus异常响应（业务错误）
