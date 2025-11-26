@@ -121,18 +121,19 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 				logrus.Infof("处理数据时出错: %s", err.Error())
 			}
 
-			// 如果需要关闭连接，则退出循环
-			// 注意：不在这里关闭连接，因为多个goroutine共享同一个连接
-			// 连接应该由连接管理逻辑统一管理（在services.go的verifyConnection中）
+			// 如果需要关闭连接，则关闭连接并退出循环
 			if shouldClose {
-				logrus.Warnf("连接需要关闭，退出处理循环: regPkg=%s, error=%s", regPkg, err.Error())
+				logrus.Warnf("连接需要关闭，关闭连接并退出处理循环: regPkg=%s, deviceID=%s, error=%s", regPkg, deviceID, err.Error())
+				// 这里使用 deviceID 作为全局映射的 key（与 verifyConnection 中保存的一致）
+				CloseConnection(conn, deviceID)
 				return
 			}
 
 			// 检查连接是否仍然有效（在 sleep 之前检查，避免无效连接继续运行）
 			if modbusErr != nil && modbusErr.Type == ErrorTypeConnection {
-				// 连接错误，即使 shouldClose 为 false，也应该退出循环
-				logrus.Warnf("检测到连接错误，退出处理循环: regPkg=%s, error=%s", regPkg, err.Error())
+				// 连接错误，即使 shouldClose 为 false，也应该关闭连接并退出循环
+				logrus.Warnf("检测到连接错误，关闭连接并退出处理循环: regPkg=%s, deviceID=%s, error=%s", regPkg, deviceID, err.Error())
+				CloseConnection(conn, deviceID)
 				return
 			}
 		}
@@ -514,11 +515,11 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 				logrus.Infof("处理数据时出错: %s", err.Error())
 			}
 
-			// 如果需要关闭连接，则退出循环
-			// 注意：不在这里关闭连接，因为多个goroutine共享同一个连接
-			// 连接应该由连接管理逻辑统一管理（在services.go的verifyConnection中）
+			// 如果需要关闭连接，则关闭连接并退出循环
 			if shouldClose {
-				logrus.Warnf("连接需要关闭，退出处理循环: regPkg=%s, error=%s", regPkg, err.Error())
+				logrus.Warnf("连接需要关闭，关闭连接并退出处理循环: regPkg=%s, deviceID=%s, error=%s", regPkg, deviceID, err.Error())
+				// 这里使用 deviceID 作为全局映射的 key（与 verifyConnection 中保存的一致）
+				CloseConnection(conn, deviceID)
 				return
 			}
 		}
@@ -528,8 +529,9 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 			// 如果发生错误且不是业务错误，检查连接状态
 			modbusErr := ClassifyError(err)
 			if modbusErr != nil && modbusErr.Type == ErrorTypeConnection {
-				// 连接错误，即使 shouldClose 为 false，也应该退出循环
-				logrus.Warnf("检测到连接错误，退出处理循环: regPkg=%s, error=%s", regPkg, err.Error())
+				// 连接错误，即使 shouldClose 为 false，也应该关闭连接并退出循环
+				logrus.Warnf("检测到连接错误，关闭连接并退出处理循环: regPkg=%s, deviceID=%s, error=%s", regPkg, deviceID, err.Error())
+				CloseConnection(conn, deviceID)
 				return
 			}
 		}
