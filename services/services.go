@@ -1,9 +1,11 @@
 package services
 
 import (
+	"errors"
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	httpclient "github.com/ThingsPanel/modbus-protocol-plugin/http_client"
 	"github.com/sirupsen/logrus"
@@ -113,7 +115,6 @@ func verifyConnection(conn net.Conn) {
 		return
 	}
 
-	// 读取客户端发送的数据
 	var buf [1024]byte
 	n, err := conn.Read(buf[:])
 	if err != nil {
@@ -149,10 +150,17 @@ func verifyConnection(conn net.Conn) {
 	authLimiter.RecordSuccess(clientIP)
 
 	logrus.Info("获取设备配置成功：", tpGatewayConfig)
+
 	// 将平台网关的配置存入全局变量
 	globaldata.GateWayConfigMap.Store(tpGatewayConfig.Data.ID, &tpGatewayConfig.Data)
-	// 将设备连接存入全局变量
+
+	// 设备连接存入全局变量后，清空连接缓冲区（设备重连时可能有上次残留）
+	// 注意：这里不清空注册包，注册包已在上面正常读走了
 	globaldata.DeviceConnectionMap.Store(tpGatewayConfig.Data.ID, &conn)
+	if err := flushConnBuffer(conn); err != nil {
+		logrus.Warnf("清空连接缓冲区失败: %v", err)
+	}
+
 	m := *MQTT.MqttClient
 	err = m.SendStatus(tpGatewayConfig.Data.ID, "1")
 	if err != nil {
@@ -161,5 +169,29 @@ func verifyConnection(conn net.Conn) {
 	// 设备上线
 	logrus.Info("【MQTT上线消息已发送】设备上线(", tpGatewayConfig.Data.ID, "):", regPkg)
 	HandleConn(regPkg, tpGatewayConfig.Data.ID) // 处理连接
-	// defer conn.Close()
+}
+
+// flushConnBuffer 清空连接缓冲区中的残留数据
+func flushConnBuffer(conn net.Conn) error {
+	if err := conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond)); err != nil {
+		return err
+	}
+	buf := make([]byte, 4096)
+	total := 0
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				if total > 0 {
+					logrus.Debugf("清空残留缓冲区完成，共 %d 字节", total)
+				}
+				return nil
+			}
+			if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "use of closed network connection") {
+				return nil
+			}
+			return err
+		}
+		total += n
+	}
 }

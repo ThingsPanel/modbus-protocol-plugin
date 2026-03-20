@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 
 	"github.com/ThingsPanel/tp-protocol-sdk-go/api"
 )
@@ -11,6 +12,11 @@ import (
 // ReportException 上报所有类型的异常到平台
 func ReportException(err error, tpSubDevice *api.SubDevice, rawRequest []byte, rawResponse []byte) {
 	if err == nil {
+		return
+	}
+
+	// 检查是否启用异常上报
+	if !viper.GetBool("exception_report.enabled") {
 		return
 	}
 

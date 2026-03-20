@@ -40,3 +40,7 @@ retry_mechanism:
   max_retries: 1 # 最大重试次数
   retry_interval: 300ms # 重试间隔时间
   backoff_multiplier: 1.5 # 退避倍数（指数退避）
+
+# 异常上报配置
+exception_report:
+  enabled: true # 是否上报异常到遥测

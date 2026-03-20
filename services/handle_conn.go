@@ -114,25 +114,29 @@ func handleRTUCommand(RTUCommand *modbus.RTUCommand, commandRaw *tpconfig.Comman
 
 		if err != nil {
 			modbusErr := ClassifyError(err)
-			// 业务错误（Modbus异常响应）继续运行，不关闭连接
+
+			// 超时：断开连接让设备重连，彻底清除迟到响应的隐患
+			if modbusErr != nil && modbusErr.Type == ErrorTypeTimeout {
+				logrus.Warnf("Modbus RTU 超时，断开连接触发重连: regPkg=%s, deviceID=%s", regPkg, deviceID)
+				CloseConnection(conn, deviceID)
+				return
+			}
+
+			// 业务错误继续运行
 			if modbusErr != nil && modbusErr.IsBusinessError() {
 				logrus.Debugf("业务错误，继续运行: %s", err.Error())
 			} else {
 				logrus.Infof("处理数据时出错: %s", err.Error())
 			}
 
-			// 如果需要关闭连接，则关闭连接并退出循环
 			if shouldClose {
-				logrus.Warnf("连接需要关闭，关闭连接并退出处理循环: regPkg=%s, deviceID=%s, error=%s", regPkg, deviceID, err.Error())
-				// 这里使用 deviceID 作为全局映射的 key（与 verifyConnection 中保存的一致）
+				logrus.Warnf("连接需要关闭，关闭连接并退出: regPkg=%s, deviceID=%s", regPkg, deviceID)
 				CloseConnection(conn, deviceID)
 				return
 			}
 
-			// 检查连接是否仍然有效（在 sleep 之前检查，避免无效连接继续运行）
 			if modbusErr != nil && modbusErr.Type == ErrorTypeConnection {
-				// 连接错误，即使 shouldClose 为 false，也应该关闭连接并退出循环
-				logrus.Warnf("检测到连接错误，关闭连接并退出处理循环: regPkg=%s, deviceID=%s, error=%s", regPkg, deviceID, err.Error())
+				logrus.Warnf("连接错误，关闭连接并退出: regPkg=%s, deviceID=%s", regPkg, deviceID)
 				CloseConnection(conn, deviceID)
 				return
 			}
@@ -254,7 +258,7 @@ func sendDataAndReadResponseOnce(conn net.Conn, data []byte, regPkg string, modb
 	}
 
 	// 设置写超时时间
-	err := conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+	err := conn.SetWriteDeadline(time.Now().Add(3 * time.Second))
 	if err != nil {
 		// 如果连接已关闭，立即返回错误
 		return 0, nil, ClassifyError(err)
@@ -267,7 +271,7 @@ func sendDataAndReadResponseOnce(conn net.Conn, data []byte, regPkg string, modb
 	}
 
 	// 设置读取超时时间
-	err = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 	if err != nil {
 		// 如果连接已关闭，立即返回错误
 		return 0, nil, ClassifyError(err)
@@ -508,29 +512,29 @@ func handleTCPCommand(TCPCommand *modbus.TCPCommand, commandRaw *tpconfig.Comman
 
 		if err != nil {
 			modbusErr := ClassifyError(err)
-			// 业务错误（Modbus异常响应）继续运行，不关闭连接
+
+			// 超时：断开连接让设备重连，彻底清除迟到响应的隐患
+			if modbusErr != nil && modbusErr.Type == ErrorTypeTimeout {
+				logrus.Warnf("Modbus TCP 超时，断开连接触发重连: regPkg=%s, deviceID=%s", regPkg, deviceID)
+				CloseConnection(conn, deviceID)
+				return
+			}
+
+			// 业务错误继续运行
 			if modbusErr != nil && modbusErr.IsBusinessError() {
 				logrus.Debugf("业务错误，继续运行: %s", err.Error())
 			} else {
 				logrus.Infof("处理数据时出错: %s", err.Error())
 			}
 
-			// 如果需要关闭连接，则关闭连接并退出循环
 			if shouldClose {
-				logrus.Warnf("连接需要关闭，关闭连接并退出处理循环: regPkg=%s, deviceID=%s, error=%s", regPkg, deviceID, err.Error())
-				// 这里使用 deviceID 作为全局映射的 key（与 verifyConnection 中保存的一致）
+				logrus.Warnf("连接需要关闭，关闭连接并退出: regPkg=%s, deviceID=%s", regPkg, deviceID)
 				CloseConnection(conn, deviceID)
 				return
 			}
-		}
 
-		// 检查连接是否仍然有效（在 sleep 之前检查，避免无效连接继续运行）
-		if err != nil {
-			// 如果发生错误且不是业务错误，检查连接状态
-			modbusErr := ClassifyError(err)
 			if modbusErr != nil && modbusErr.Type == ErrorTypeConnection {
-				// 连接错误，即使 shouldClose 为 false，也应该关闭连接并退出循环
-				logrus.Warnf("检测到连接错误，关闭连接并退出处理循环: regPkg=%s, deviceID=%s, error=%s", regPkg, deviceID, err.Error())
+				logrus.Warnf("连接错误，关闭连接并退出: regPkg=%s, deviceID=%s", regPkg, deviceID)
 				CloseConnection(conn, deviceID)
 				return
 			}
