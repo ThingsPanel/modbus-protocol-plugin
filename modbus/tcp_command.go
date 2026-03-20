@@ -5,25 +5,26 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
-	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus"
 )
 
+var globalTransactionID uint32
+
 type TCPCommand struct {
-	ID            string // 唯一ID
+	RequestTransactionID uint16 // 请求时使用的TransactionID
+	ProtocolID           uint16 // 协议标识符, typically 0 for Modbus
+	Length               uint16 // 后续的字节数，包括单元标识符和数据
 	MasterCommand        // 嵌入Command结构
-	Data          []byte
-	TransactionID uint16 // 事务标识符
-	ProtocolID    uint16 // 协议标识符, typically 0 for Modbus
-	Length        uint16 // 后续的字节数，包括单元标识符和数据
 }
 
 func NewTCPCommand(slaveAddress byte, functionCode byte, startingAddress uint16, quantity uint16, endianess EndianessType) TCPCommand {
-	// uuid.NewV4().String() 生成唯一ID
-	id := uuid.Must(uuid.NewV4()).String()
+	// 使用原子操作获取自增的TransactionID
+	id := atomic.AddUint32(&globalTransactionID, 1)
 	return TCPCommand{
-		ID: id,
+		RequestTransactionID: uint16(id),
+		ProtocolID:           0, // Typically, this is 0 for Modbus
 		MasterCommand: MasterCommand{
 			SlaveAddress:    slaveAddress,
 			FunctionCode:    functionCode,
@@ -31,7 +32,6 @@ func NewTCPCommand(slaveAddress byte, functionCode byte, startingAddress uint16,
 			Quantity:        quantity,
 			Endianess:       endianess,
 		},
-		ProtocolID: 0, // Typically, this is 0 for Modbus
 	}
 }
 
@@ -48,50 +48,45 @@ func (t *TCPCommand) Serialize() ([]byte, error) {
 
 	// 创建一个新的buffer来包含TCP Modbus头和数据
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.BigEndian, t.TransactionID)
+	binary.Write(&buf, binary.BigEndian, t.RequestTransactionID)
 	binary.Write(&buf, binary.BigEndian, t.ProtocolID)
 	binary.Write(&buf, binary.BigEndian, t.Length)
-	// buf.WriteByte(t.SlaveAddress) // 写入单元标识符
 	buf.Write(data)
-
-	// 将序列化后的结果赋值给t.Data
-	t.Data = buf.Bytes()
 
 	return buf.Bytes(), nil
 }
 
-const MBAPHeaderLength = 6 // MBAP Header length for Modbus TCP
+const MBAPHeaderLength = 7 // MBAP Header length for Modbus TCP (TransactionID:2 + ProtocolID:2 + Length:2 + UnitID:1)
 
 // 解析Modbus TCP返回的数据并提取数据部分
-func (r *TCPCommand) ParseTCPResponse(resp []byte) ([]byte, error) {
-	if len(resp) < MBAPHeaderLength { // minimal Modbus TCP frame size
+func (t *TCPCommand) ParseTCPResponse(resp []byte) ([]byte, error) {
+	if len(resp) < MBAPHeaderLength {
 		logrus.Error("response too short")
 		return nil, errors.New("response too short")
 	}
 
-	//检查读取的数据不等于数据长度则丢弃
-	// if r.FunctionCode == 0x03 || r.FunctionCode == 0x04 || r.FunctionCode == 0x06 {
-	// 	//检查读取的数据与预设的数据长度不符合则丢弃
-	// 	if len(resp) != int(2*r.Quantity)+5 {
-	// 		logrus.Error("response length mismatch")
-	// 		return nil, fmt.Errorf("response length mismatch: expected %d but got %d", int(2*r.Quantity)+5, len(resp))
-	// 	}
-	// }
-	// Extracting MBAP fields from the response
-	r.TransactionID = binary.BigEndian.Uint16(resp[0:2])
-	r.ProtocolID = binary.BigEndian.Uint16(resp[2:4])
-	r.Length = binary.BigEndian.Uint16(resp[4:6])
+	// 提取MBAP字段
+	respTransactionID := binary.BigEndian.Uint16(resp[0:2])
+	respProtocolID := binary.BigEndian.Uint16(resp[2:4])
+	respLength := binary.BigEndian.Uint16(resp[4:6])
 
-	// Check if the ProtocolID is as expected (typically 0 for Modbus)
-	if r.ProtocolID != 0 {
-		logrus.Error("unexpected ProtocolID")
-		return nil, fmt.Errorf("unexpected ProtocolID: %d", r.ProtocolID)
+	// 校验TransactionID是否匹配
+	if respTransactionID != t.RequestTransactionID {
+		logrus.Warnf("TransactionID mismatch: sent=%d, received=%d", t.RequestTransactionID, respTransactionID)
+		return nil, fmt.Errorf("TransactionID mismatch: sent=%d, received=%d", t.RequestTransactionID, respTransactionID)
 	}
 
-	// Check if the length field in the MBAP header matches the actual response length
-	if int(r.Length)+6 != len(resp) { // +6 because we don't include the 6 byte length of the MBAP header and 1 byte unit identifier in the length field of the MBAP header
+	// Check if the ProtocolID is as expected (typically 0 for Modbus)
+	if respProtocolID != 0 {
+		logrus.Error("unexpected ProtocolID")
+		return nil, fmt.Errorf("unexpected ProtocolID: %d", respProtocolID)
+	}
+
+	// 校验长度
+	expectedLen := int(respLength) + 6
+	if len(resp) != expectedLen {
 		logrus.Error("length mismatch")
-		return nil, fmt.Errorf("length mismatch: MBAP header reports %d bytes but received %d bytes", r.Length, len(resp)-MBAPHeaderLength)
+		return nil, fmt.Errorf("length mismatch: MBAP header reports %d bytes but received %d bytes", respLength, len(resp)-6)
 	}
 
 	// Extract and return the PDU (Protocol Data Unit) without the MBAP header

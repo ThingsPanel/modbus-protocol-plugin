@@ -1,7 +1,6 @@
 package services
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
@@ -10,25 +9,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-/*
-逻辑：
-一次请求必然有一次响应。
-在发送请求前，也许缓冲区已经有了多个心跳包，也许没有心跳包。
-程序需要跳过心跳包，来读取响应数据。
-在一次读取的时候也许响应会跟在心跳包后。
-只要有响应，就返回响应。
-ReadModbusRTUResponse方法返回失败会导致连接关闭，所以如果不是连接断开就不能返回错误。
-不做CRC校验
-*/
-
-func isTimeout(err error) bool {
-	if netErr, ok := err.(net.Error); ok {
-		return netErr.Timeout()
-	}
-	return false
-}
-
-func ReadModbusRTUResponse(conn net.Conn, regPkg string) ([]byte, error) {
+// ReadModbusRTUResponse 读取Modbus RTU响应
+// expectedFuncCode: 当前请求的功能码，用于验证响应
+func ReadModbusRTUResponse(conn net.Conn, expectedFuncCode byte) ([]byte, error) {
 	var buffer bytes.Buffer
 	readBuffer := make([]byte, 256)
 
@@ -44,40 +27,49 @@ func ReadModbusRTUResponse(conn net.Conn, regPkg string) ([]byte, error) {
 		if err != nil {
 			logrus.Info("读取错误: ", err)
 			logrus.Info("-----------------------------")
-			if !isTimeout(err) {
-				return nil, fmt.Errorf("连接异常: %v", err)
+			// 超时错误不算连接异常，允许继续处理
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				break
 			}
-			break
+			return nil, fmt.Errorf("连接异常: %v", err)
 		}
 		logrus.Info("-----------------------------")
 
 		buffer.Write(readBuffer[:n])
 
-		// 尝试解析modbus响应
-		if modbusData := findModbusResponse(buffer.Bytes()); modbusData != nil {
+		// 尝试解析modbus响应，必须匹配功能码
+		if modbusData := findModbusResponse(buffer.Bytes(), expectedFuncCode); modbusData != nil {
 			return modbusData, nil
-		}
-
-		// 第一次没找到响应且没超时,继续读取
-		if i == 0 && err == nil {
-			continue
 		}
 	}
 
+	// 超时但没找到响应，返回nil
 	return nil, nil
 }
 
-func findModbusResponse(data []byte) []byte {
+// findModbusResponse 在数据中查找有效的Modbus响应
+// 必须匹配 expectedFuncCode，否则返回nil
+func findModbusResponse(data []byte, expectedFuncCode byte) []byte {
 	if len(data) < 5 {
 		return nil
 	}
 
 	for i := 0; i < len(data)-4; i++ {
+		// 跳过0x30-0x39（数字字符干扰）
 		if data[i] >= 0x30 && data[i] <= 0x39 {
 			continue
 		}
 
-		if !isValidFunctionCode(data[i+1]) {
+		// 检查功能码是否匹配
+		funcCode := data[i+1]
+
+		// 如果不是异常响应，必须匹配请求的功能码
+		if funcCode&0x80 == 0 && funcCode != expectedFuncCode {
+			continue
+		}
+
+		// 检查功能码是否有效
+		if !isValidFunctionCode(funcCode) {
 			continue
 		}
 
@@ -94,9 +86,9 @@ func findModbusResponse(data []byte) []byte {
 }
 
 func isValidFunctionCode(code byte) bool {
-	// 检查是否为异常响应（功能码最高位为1）
+	// 异常响应（最高位为1）也是有效的
 	if code&0x80 != 0 {
-		return true // 异常响应也是有效的
+		return true
 	}
 	// 检查正常功能码
 	validCodes := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x0F, 0x10}
@@ -123,12 +115,4 @@ func calculateResponseLength(header []byte) (int, error) {
 	default:
 		return 0, fmt.Errorf("不支持的功能码: %02X", header[1])
 	}
-}
-func ReadHeader(reader *bufio.Reader) ([]byte, error) {
-	header, err := reader.Peek(3)
-	if err != nil {
-		return nil, err
-	}
-	_, err = reader.Discard(3)
-	return header, err
 }
