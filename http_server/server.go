@@ -7,35 +7,31 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
+	"time"
 
 	globaldata "github.com/ThingsPanel/modbus-protocol-plugin/global_data"
+	"github.com/ThingsPanel/modbus-protocol-plugin/mqtt"
 	service "github.com/ThingsPanel/modbus-protocol-plugin/services"
-	tpprotocolsdkgo "github.com/ThingsPanel/tp-protocol-sdk-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
-var HttpClient *tpprotocolsdkgo.Client
-
-func Init() {
-	go start()
-}
-
-func start() {
-	var handler tpprotocolsdkgo.Handler = tpprotocolsdkgo.Handler{
-		// OnCreateDevice: OnCreateDevice,
-		// OnUpdateDevice: OnUpdateDevice,
-		// OnDeleteDevice: OnDeleteDevice,
-		OnDisconnectDevice: OnDisconnectDevice,
-		OnGetForm:          OnGetForm,
+func Serve() error {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/form/config", OnGetForm)
+	mux.HandleFunc("POST /api/v1/device/disconnect", OnDisconnectDevice)
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		if !mqtt.Ready() {
+			http.Error(w, "MQTT unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte("ok"))
+	})
+	server := &http.Server{
+		Addr: viper.GetString("http_server.address"), Handler: mux, ReadHeaderTimeout: 5 * time.Second,
 	}
-	addr := viper.GetString("http_server.address")
-	logrus.Info("http服务启动：", addr)
-	err := handler.ListenAndServe(addr)
-	if err != nil {
-		logrus.Info("ListenAndServe() failed, err: ", err)
-		return
-	}
+	return server.ListenAndServe()
 }
 
 // OnDisconnectDevice 断开设备
@@ -89,9 +85,10 @@ func OnGetForm(w http.ResponseWriter, r *http.Request) {
 	logrus.Info("【收到api请求】path", r.URL.Path)
 	logrus.Info("query", r.URL.Query())
 
-	device_type := r.URL.Query()["device_type"][0]
-	form_type := r.URL.Query()["form_type"][0]
-	protocol_type := r.URL.Query()["protocol_type"][0]
+	device_type := r.URL.Query().Get("device_type")
+	form_type := r.URL.Query().Get("form_type")
+	protocol_type := r.URL.Query().Get("protocol_type")
+	formDir := viper.GetString("http_server.form_dir")
 	// 如果请求参数protocol_type不等于MODBUS_RTU或MODBUS_TCP，返回空
 	if protocol_type != "MODBUS_RTU" && protocol_type != "MODBUS_TCP" {
 		RspError(w, errors.New("not support protocol type"))
@@ -102,14 +99,14 @@ func OnGetForm(w http.ResponseWriter, r *http.Request) {
 	case "CFG":
 		if device_type == "3" {
 			// 子设备配置表单
-			RspSuccess(w, readFormConfigByPath("./form_config.json"))
+			RspSuccess(w, readFormConfigByPath(filepath.Join(formDir, "form_config.json")))
 		} else {
 			RspSuccess(w, nil)
 		}
 	case "VCR":
 		if device_type == "2" {
 			// 网关凭证表单
-			RspSuccess(w, readFormConfigByPath("./form_voucher.json"))
+			RspSuccess(w, readFormConfigByPath(filepath.Join(formDir, "form_voucher.json")))
 		} else {
 			RspSuccess(w, nil)
 		}
@@ -117,7 +114,7 @@ func OnGetForm(w http.ResponseWriter, r *http.Request) {
 		if device_type == "2" {
 			// 网关凭证类型表单
 
-			RspSuccess(w, readFormConfigByPath("./form_voucher_type.json"))
+			RspSuccess(w, readFormConfigByPath(filepath.Join(formDir, "form_voucher_type.json")))
 		} else {
 			RspSuccess(w, nil)
 		}

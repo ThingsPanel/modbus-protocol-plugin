@@ -1,0 +1,20 @@
+server:
+  address: ":1502"
+  identifier1: MODBUS_RTU
+  identifier2: MODBUS_TCP
+http_server:
+  address: ":1503"
+  form_dir: /app
+thingspanel:
+  managed: true
+  address: http://backend:9999
+mqtt:
+  broker: tcp://mosquitto:1883
+  topic_to_publish_sub: devices/telemetry
+  qos: 1
+log:
+  level: warn
+auth_limiter:
+  enabled: true
+  failure_threshold: 5
+  block_duration: 3m

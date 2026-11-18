@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"strings"
 
 	//monitor "opcua/examples"
@@ -16,16 +17,16 @@ func main() {
 	conf()
 	log.Println("Starting the application...")
 	LogInIt()
-	// 启动mqtt客户端
+	if err := httpclient.Init(); err != nil {
+		log.Fatal(err)
+	}
 	mqtt.InitClient()
-	// 启动http客户端
-	httpclient.Init()
-	deviceconfig.Start()
-	// 启动http服务
-	httpserver.Init()
+	if err := deviceconfig.Start(); err != nil {
+		log.Fatal(err)
+	}
 	// 订阅平台下发的消息
 	mqtt.Subscribe()
-	select {}
+	log.Fatal(httpserver.Serve())
 }
 func conf() {
 	log.Println("加载配置文件...")
@@ -35,9 +36,16 @@ func conf() {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.SetConfigType("yaml")
-	viper.SetConfigFile("./config.yaml")
+	configFile := os.Getenv("MODBUS_CONFIG_FILE")
+	if configFile == "" {
+		configFile = "./config.yaml"
+	}
+	viper.SetConfigFile(configFile)
 	err := viper.ReadInConfig()
 	if err != nil {
+		if viper.GetBool("thingspanel.managed") {
+			log.Fatal(err)
+		}
 		log.Println(err.Error())
 	}
 	log.Println("加载配置文件完成...")

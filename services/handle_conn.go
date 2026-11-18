@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 	"time"
 
 	globaldata "github.com/ThingsPanel/modbus-protocol-plugin/global_data"
@@ -20,7 +19,7 @@ import (
 )
 
 // HandleConn 处理单个连接
-func HandleConn(regPkg, deviceID string) {
+func HandleConn(regPkg, deviceID string, active *net.Conn) {
 	// 获取网关配置
 	m, _ := globaldata.GateWayConfigMap.Load(deviceID)
 	gatewayConfig := m.(*api.DeviceConfigResponseData)
@@ -55,7 +54,7 @@ func HandleConn(regPkg, deviceID string) {
 					endianess = modbus.BigEndian
 				}
 				cmd := modbus.NewRTUCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, endianess)
-				go handleRTUCommandLoop(&cmd, commandRaw, regPkg, &tpSubDevice, deviceID)
+				go handleRTUCommandLoop(&cmd, commandRaw, regPkg, &tpSubDevice, deviceID, active)
 
 			} else if gatewayConfig.ProtocolType == "MODBUS_TCP" {
 				switch commandRaw.Endianess {
@@ -71,14 +70,14 @@ func HandleConn(regPkg, deviceID string) {
 					endianess = modbus.BigEndian
 				}
 				cmd := modbus.NewTCPCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, endianess)
-				go handleTCPCommandLoop(&cmd, commandRaw, regPkg, &tpSubDevice, deviceID)
+				go handleTCPCommandLoop(&cmd, commandRaw, regPkg, &tpSubDevice, deviceID, active)
 			}
 		}
 	}
 }
 
 // handleRTUCommandLoop RTU命令循环处理
-func handleRTUCommandLoop(cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, subDevice *api.SubDevice, deviceID string) {
+func handleRTUCommandLoop(cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, subDevice *api.SubDevice, deviceID string, active *net.Conn) {
 	data, err := cmd.Serialize()
 	if err != nil {
 		logrus.Error(err.Error())
@@ -90,28 +89,22 @@ func handleRTUCommandLoop(cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRa
 	}
 	interval := time.Duration(commandRaw.Interval) * time.Second
 
-	logrus.Infof("RTU命令循环启动: deviceID=%s, regPkg=%s, 功能码=0x%02X", deviceID, regPkg, cmd.FunctionCode)
+	logrus.Infof("RTU命令循环启动: deviceID=%s, 功能码=0x%02X", deviceID, cmd.FunctionCode)
+	lock := globaldata.DeviceLock(deviceID)
 
 	for {
-		// 获取连接
+		lock.Lock()
 		connVal, exists := globaldata.DeviceConnectionMap.Load(deviceID)
-		if !exists {
-			logrus.Warnf("设备连接已断开，退出: deviceID=%s", deviceID)
+		if !exists || connVal != active {
+			lock.Unlock()
 			return
 		}
-		gatewayConn := connVal.(*net.Conn)
-		conn := *gatewayConn
-
-		// 获取设备锁，确保同一设备的命令串行执行
-		if _, ok := globaldata.DeviceRWLock[regPkg]; !ok {
-			globaldata.DeviceRWLock[regPkg] = &sync.Mutex{}
-		}
-		globaldata.DeviceRWLock[regPkg].Lock()
+		conn := *active
 
 		// 发送并处理响应
 		err := sendRTUDataAndProcessResponse(conn, data, cmd, commandRaw, regPkg, subDevice)
 
-		globaldata.DeviceRWLock[regPkg].Unlock()
+		lock.Unlock()
 
 		if err != nil {
 			// 任何错误都断开连接，让设备重连
@@ -126,7 +119,7 @@ func handleRTUCommandLoop(cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRa
 }
 
 // handleTCPCommandLoop TCP命令循环处理
-func handleTCPCommandLoop(cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, subDevice *api.SubDevice, deviceID string) {
+func handleTCPCommandLoop(cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, subDevice *api.SubDevice, deviceID string, active *net.Conn) {
 	data, err := cmd.Serialize()
 	if err != nil {
 		logrus.Error(err.Error())
@@ -138,28 +131,22 @@ func handleTCPCommandLoop(cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRa
 	}
 	interval := time.Duration(commandRaw.Interval) * time.Second
 
-	logrus.Infof("TCP命令循环启动: deviceID=%s, regPkg=%s, 功能码=0x%02X", deviceID, regPkg, cmd.FunctionCode)
+	logrus.Infof("TCP命令循环启动: deviceID=%s, 功能码=0x%02X", deviceID, cmd.FunctionCode)
+	lock := globaldata.DeviceLock(deviceID)
 
 	for {
-		// 获取连接
+		lock.Lock()
 		connVal, exists := globaldata.DeviceConnectionMap.Load(deviceID)
-		if !exists {
-			logrus.Warnf("设备连接已断开，退出: deviceID=%s", deviceID)
+		if !exists || connVal != active {
+			lock.Unlock()
 			return
 		}
-		gatewayConn := connVal.(*net.Conn)
-		conn := *gatewayConn
-
-		// 获取设备锁，确保同一设备的命令串行执行
-		if _, ok := globaldata.DeviceRWLock[regPkg]; !ok {
-			globaldata.DeviceRWLock[regPkg] = &sync.Mutex{}
-		}
-		globaldata.DeviceRWLock[regPkg].Lock()
+		conn := *active
 
 		// 发送并处理响应
 		err := sendTCPDataAndProcessResponse(conn, data, cmd, commandRaw, regPkg, subDevice)
 
-		globaldata.DeviceRWLock[regPkg].Unlock()
+		lock.Unlock()
 
 		if err != nil {
 			// 任何错误都断开连接，让设备重连

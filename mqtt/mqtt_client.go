@@ -19,7 +19,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var MqttClient *tpprotocolsdkgo.MQTTClient
+type mqttPublisher interface {
+	Publish(topic, payload string, qos uint8) error
+	SendStatus(deviceID, status string) error
+}
+
+var MqttClient mqttPublisher
 
 func InitClient() {
 	logrus.Info("创建mqtt客户端")
@@ -27,6 +32,14 @@ func InitClient() {
 	addr := viper.GetString("mqtt.broker")
 	username := viper.GetString("mqtt.username")
 	password := viper.GetString("mqtt.password")
+	if viper.GetBool("thingspanel.managed") {
+		broker, err := connectManagedBroker(addr, username, password)
+		if err != nil {
+			log.Fatal(err)
+		}
+		MqttClient = broker
+		return
+	}
 	client := tpprotocolsdkgo.NewMQTTClient(addr, username, password)
 	// 尝试连接到MQTT代理
 	if err := client.Connect(); err != nil {
@@ -52,11 +65,15 @@ func Publish(payload string) error {
 
 // 订阅
 func Subscribe() {
+	client, ok := MqttClient.(*tpprotocolsdkgo.MQTTClient)
+	if !ok {
+		return
+	}
 	// 主题
 	topic := viper.GetString("mqtt.topic_to_subscribe")
 	qos := viper.GetUint("mqtt.qos")
 	// 订阅主题
-	if err := MqttClient.Subscribe(topic, messageHandler, uint8(qos)); err != nil {
+	if err := client.Subscribe(topic, messageHandler, uint8(qos)); err != nil {
 		log.Printf("订阅主题失败: %v", err)
 	}
 	logrus.Info("订阅主题成功:", topic)
@@ -171,6 +188,9 @@ func messageHandler(client MQTT.Client, msg MQTT.Message) {
 
 // 处理设备连接
 func handleDeviceConnection(deviceID string, sendData []byte, voucher string, protocolType string) error {
+	lock := globaldata.DeviceLock(deviceID)
+	lock.Lock()
+	defer lock.Unlock()
 	// 获取连接
 	c, exists := globaldata.DeviceConnectionMap.Load(deviceID)
 	if !exists {
@@ -184,13 +204,8 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string, pr
 		logrus.Info("SetWriteDeadline() failed, err: ", err)
 		return err
 	}
-	regPkg, isTrue := globaldata.GetRegPkgByToken(voucher)
-	if isTrue {
-		globaldata.DeviceRWLock[regPkg].Lock()
-		logrus.Info("获取到锁：", regPkg)
-		defer globaldata.DeviceRWLock[regPkg].Unlock()
-	}
-	logrus.Info("voucher:", voucher, "控制设备请求：", sendData)
+	regPkg, _ := globaldata.GetRegPkgByToken(voucher)
+	logrus.Debug("控制设备请求：", sendData)
 	_, err = conn.Write(sendData)
 	if err != nil {
 		return fmt.Errorf("写入失败: %v", err)
@@ -222,11 +237,11 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string, pr
 	if isException {
 		desc := globaldata.GetModbusErrorDesc(exceptionCode)
 		errMsg := fmt.Sprintf("Modbus异常响应: function_code=0x%02X, exception_code=0x%02X, %s", functionCode, exceptionCode, desc)
-		logrus.Warn("voucher:", voucher, "控制设备失败:", errMsg)
+		logrus.WithField("device_id", deviceID).Warn("控制设备失败: ", errMsg)
 		return fmt.Errorf("控制失败: %s", errMsg)
 	}
 
-	logrus.Info("voucher:", voucher, "控制设备响应：", buf)
+	logrus.Debug("控制设备响应：", buf)
 	return nil
 }
 

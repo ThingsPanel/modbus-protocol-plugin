@@ -1,0 +1,9 @@
+**
+!*/
+!**/*.go
+!go.mod
+!go.sum
+!configs/managed.yaml
+!form_config.json
+!form_voucher.json
+!form_voucher_type.json

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"net"
 	"strings"
@@ -27,24 +28,23 @@ var (
 // 全局认证限流器
 var authLimiter *AuthLimiter
 
-func Start() {
+func Start() error {
+	listen, err := net.Listen("tcp", viper.GetString("server.address"))
+	if err != nil {
+		return err
+	}
 	// 初始化认证限流器
 	authLimiter = NewAuthLimiter()
 	// 启动处理连接的goroutine
 	go handleChanConnections()
 	// 启动服务
-	go startServer()
+	go startServer(listen)
+	return nil
 }
 
 // startServer启动服务
-func startServer() {
-	serverAddr := viper.GetString("server.address")
-	listen, err := net.Listen("tcp", serverAddr)
-	if err != nil {
-		logrus.Info("Listen() failed, err: ", err)
-		return
-	}
-	logrus.Info("modbus服务启动成功：", serverAddr)
+func startServer(listen net.Listener) {
+	logrus.Info("modbus服务启动成功：", listen.Addr())
 	for {
 		conn, err := listen.Accept() // 监听客户端的连接请求
 		if err != nil {
@@ -81,6 +81,9 @@ func CloseConnection(conn net.Conn, regPkg string) {
 	if err != nil {
 		logrus.Info("Close() failed, err: ", err)
 	}
+	lock := globaldata.DeviceLock(regPkg)
+	lock.Lock()
+	defer lock.Unlock()
 	// 删除全局变量
 	if m, exists := globaldata.DeviceConnectionMap.Load(regPkg); !exists {
 		return
@@ -89,14 +92,13 @@ func CloseConnection(conn net.Conn, regPkg string) {
 	}
 	logrus.Info("删除全局变量完成：", regPkg)
 	// 做其他事情，比如发送离线消息
-	m := *MQTT.MqttClient
-	err = m.SendStatus(regPkg, "0")
+	MQTT.SetGatewaySubscriptions(regPkg, nil)
+	err = MQTT.MqttClient.SendStatus(regPkg, "0")
 	if err != nil {
 		logrus.Info("SendStatus() failed, err: ", err)
 	}
 	globaldata.GateWayConfigMap.Delete(regPkg)
 	globaldata.DeviceConnectionMap.Delete(regPkg)
-	delete(globaldata.DeviceRWLock, regPkg)
 	// 设备离线
 	logrus.Info("设备离线：", regPkg)
 }
@@ -116,6 +118,10 @@ func verifyConnection(conn net.Conn) {
 	}
 
 	var buf [1024]byte
+	if err := conn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		_ = conn.Close()
+		return
+	}
 	n, err := conn.Read(buf[:])
 	if err != nil {
 		// 如果是连接重置错误，将IP加入黑名单
@@ -131,12 +137,13 @@ func verifyConnection(conn net.Conn) {
 		return
 	}
 	regPkg := string(buf[:n])
-	logrus.Info("收到客户端发来的注册包：", regPkg)
 	// 首次接收到的是设备regPkg，需要根据regPkg获取设备配置
 	// 凭借voucher
-	voucher := `{"reg_pkg":"` + regPkg + `"}`
+	voucher, _ := json.Marshal(struct {
+		RegPkg string `json:"reg_pkg"`
+	}{RegPkg: regPkg})
 	// 读取设备配置
-	tpGatewayConfig, err := httpclient.GetDeviceConfig(voucher, "")
+	tpGatewayConfig, err := httpclient.GetDeviceConfig(string(voucher), "")
 	if err != nil {
 		// 认证失败，记录限流
 		authLimiter.RecordFailure(clientIP)
@@ -149,26 +156,32 @@ func verifyConnection(conn net.Conn) {
 	// 认证成功，清除限流记录
 	authLimiter.RecordSuccess(clientIP)
 
-	logrus.Info("获取设备配置成功：", tpGatewayConfig)
+	logrus.WithField("device_id", tpGatewayConfig.Data.ID).Info("获取设备配置成功")
 
 	// 将平台网关的配置存入全局变量
-	globaldata.GateWayConfigMap.Store(tpGatewayConfig.Data.ID, &tpGatewayConfig.Data)
+	deviceID := tpGatewayConfig.Data.ID
+	lock := globaldata.DeviceLock(deviceID)
+	lock.Lock()
+	defer lock.Unlock()
+	globaldata.GateWayConfigMap.Store(deviceID, &tpGatewayConfig.Data)
 
 	// 设备连接存入全局变量后，清空连接缓冲区（设备重连时可能有上次残留）
 	// 注意：这里不清空注册包，注册包已在上面正常读走了
-	globaldata.DeviceConnectionMap.Store(tpGatewayConfig.Data.ID, &conn)
+	if previous, exists := globaldata.DeviceConnectionMap.Swap(deviceID, &conn); exists {
+		_ = (*previous.(*net.Conn)).Close()
+	}
 	if err := flushConnBuffer(conn); err != nil {
 		logrus.Warnf("清空连接缓冲区失败: %v", err)
 	}
 
-	m := *MQTT.MqttClient
-	err = m.SendStatus(tpGatewayConfig.Data.ID, "1")
+	err = MQTT.MqttClient.SendStatus(tpGatewayConfig.Data.ID, "1")
 	if err != nil {
 		logrus.Info("SendStatus() failed, err: ", err)
 	}
 	// 设备上线
-	logrus.Info("【MQTT上线消息已发送】设备上线(", tpGatewayConfig.Data.ID, "):", regPkg)
-	HandleConn(regPkg, tpGatewayConfig.Data.ID) // 处理连接
+	logrus.Info("设备上线：", tpGatewayConfig.Data.ID)
+	HandleConn(regPkg, deviceID, &conn)
+	MQTT.SetGatewaySubscriptions(deviceID, tpGatewayConfig.Data.SubDevices)
 }
 
 // flushConnBuffer 清空连接缓冲区中的残留数据

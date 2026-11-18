@@ -22,7 +22,12 @@ var SubDeviceIDAndGateWayIDMap sync.Map
 var DeviceConnectionMap sync.Map
 
 // 设备读写互斥锁
-var DeviceRWLock = map[string]*sync.Mutex{}
+var deviceLocks sync.Map
+
+func DeviceLock(deviceID string) *sync.Mutex {
+	lock, _ := deviceLocks.LoadOrStore(deviceID, &sync.Mutex{})
+	return lock.(*sync.Mutex)
+}
 
 // modbus错误码映射
 var ModbusErrorMap = map[byte]string{
