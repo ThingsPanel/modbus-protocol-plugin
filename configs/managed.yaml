@@ -9,7 +9,8 @@ thingspanel:
   managed: true
   address: http://backend:9999
 mqtt:
-  broker: tcp://mosquitto:1883
+  # Override with MODBUS_MQTT_BROKER to use the platform's configured MQTT endpoint.
+  broker: tcp://127.0.0.1:1883
   topic_to_publish_sub: devices/telemetry
   qos: 1
 log:

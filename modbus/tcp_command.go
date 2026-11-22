@@ -89,6 +89,7 @@ func (t *TCPCommand) ParseTCPResponse(resp []byte) ([]byte, error) {
 		return nil, fmt.Errorf("length mismatch: MBAP header reports %d bytes but received %d bytes", respLength, len(resp)-6)
 	}
 
-	// Extract and return the PDU (Protocol Data Unit) without the MBAP header
-	return resp[MBAPHeaderLength:], nil
+	// Keep the unit identifier so CommandRaw.Serialize receives the same
+	// [unit ID, function, byte count, data...] layout used by RTU responses.
+	return resp[MBAPHeaderLength-1:], nil
 }

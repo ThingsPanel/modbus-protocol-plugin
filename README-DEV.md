@@ -10,8 +10,8 @@ go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.5
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.6
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@v1.1.7
 go get -u github.com/ThingsPanel/tp-protocol-sdk-go@latest
-mosquitto_pub -h 47.115.210.16 -p 1883 -t "devices/telemetry" -m "{\"temp\":12.5}" -u "c55d8498" -P "c55d8498-e01e" -i "0"
-mosquitto_pub -h 47.115.210.16 -p 1883 -t "devices/telemetry" -m "{\"temp\":12.5}" -u "c55d8498" -P "c55d8498-e01e" -i "0"
+# Example using an MQTT command-line client; replace these values with the broker and credentials for your environment.
+mosquitto_pub -h "$MQTT_HOST" -p "${MQTT_PORT:-1883}" -t "devices/telemetry" -m "{\"temp\":12.5}" -u "$MQTT_USERNAME" -P "$MQTT_PASSWORD" -i "0"
 
 ## 测试
 
