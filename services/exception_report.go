@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/hex"
 
+	"github.com/ThingsPanel/modbus-protocol-plugin/mqtt"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
@@ -47,7 +48,7 @@ func ReportException(err error, tpSubDevice *api.SubDevice, rawRequest []byte, r
 	}
 
 	// 上报异常信息
-	if err := processResponseData(dataMap, tpSubDevice); err != nil {
+	if err := mqtt.PublishDeviceTelemetry(tpSubDevice.DeviceID, dataMap); err != nil {
 		logrus.Errorf("Failed to report Modbus exception: %v", err)
 	} else {
 		logrus.Infof("Reported Modbus exception: type=%s, message=%s", getErrorTypeName(modbusErr.Type), modbusErr.Message)

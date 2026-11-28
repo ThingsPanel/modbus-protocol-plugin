@@ -1,7 +1,6 @@
 package services
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -10,7 +9,7 @@ import (
 
 	globaldata "github.com/ThingsPanel/modbus-protocol-plugin/global_data"
 	"github.com/ThingsPanel/modbus-protocol-plugin/modbus"
-	MQTT "github.com/ThingsPanel/modbus-protocol-plugin/mqtt"
+	"github.com/ThingsPanel/modbus-protocol-plugin/mqtt"
 	tpconfig "github.com/ThingsPanel/modbus-protocol-plugin/tp_config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -54,7 +53,7 @@ func HandleConn(regPkg, deviceID string, active *net.Conn) {
 					endianess = modbus.BigEndian
 				}
 				cmd := modbus.NewRTUCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, endianess)
-				go handleRTUCommandLoop(&cmd, commandRaw, regPkg, &tpSubDevice, deviceID, active)
+				go handleRTUCommandLoop(&cmd, commandRaw, &tpSubDevice, gatewayConfig, active)
 
 			} else if gatewayConfig.ProtocolType == "MODBUS_TCP" {
 				switch commandRaw.Endianess {
@@ -70,14 +69,15 @@ func HandleConn(regPkg, deviceID string, active *net.Conn) {
 					endianess = modbus.BigEndian
 				}
 				cmd := modbus.NewTCPCommand(subDeviceFormConfig.SlaveID, commandRaw.FunctionCode, commandRaw.StartingAddress, commandRaw.Quantity, endianess)
-				go handleTCPCommandLoop(&cmd, commandRaw, regPkg, &tpSubDevice, deviceID, active)
+				go handleTCPCommandLoop(&cmd, commandRaw, regPkg, &tpSubDevice, gatewayConfig, active)
 			}
 		}
 	}
 }
 
 // handleRTUCommandLoop RTU命令循环处理
-func handleRTUCommandLoop(cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, regPkg string, subDevice *api.SubDevice, deviceID string, active *net.Conn) {
+func handleRTUCommandLoop(cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, subDevice *api.SubDevice, gateway *api.DeviceConfigResponseData, active *net.Conn) {
+	deviceID := gateway.ID
 	data, err := cmd.Serialize()
 	if err != nil {
 		logrus.Error(err.Error())
@@ -102,7 +102,7 @@ func handleRTUCommandLoop(cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRa
 		conn := *active
 
 		// 发送并处理响应
-		err := sendRTUDataAndProcessResponse(conn, data, cmd, commandRaw, regPkg, subDevice)
+		err := sendRTUDataAndProcessResponse(conn, data, cmd, commandRaw, subDevice, gateway)
 
 		lock.Unlock()
 
@@ -119,7 +119,8 @@ func handleRTUCommandLoop(cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRa
 }
 
 // handleTCPCommandLoop TCP命令循环处理
-func handleTCPCommandLoop(cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, subDevice *api.SubDevice, deviceID string, active *net.Conn) {
+func handleTCPCommandLoop(cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, subDevice *api.SubDevice, gateway *api.DeviceConfigResponseData, active *net.Conn) {
+	deviceID := gateway.ID
 	data, err := cmd.Serialize()
 	if err != nil {
 		logrus.Error(err.Error())
@@ -144,7 +145,7 @@ func handleTCPCommandLoop(cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRa
 		conn := *active
 
 		// 发送并处理响应
-		err := sendTCPDataAndProcessResponse(conn, data, cmd, commandRaw, regPkg, subDevice)
+		err := sendTCPDataAndProcessResponse(conn, data, cmd, commandRaw, regPkg, subDevice, gateway)
 
 		lock.Unlock()
 
@@ -161,7 +162,7 @@ func handleTCPCommandLoop(cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRa
 }
 
 // sendRTUDataAndProcessResponse 发送RTU数据并处理响应
-func sendRTUDataAndProcessResponse(conn net.Conn, data []byte, cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, deviceID string, subDevice *api.SubDevice) error {
+func sendRTUDataAndProcessResponse(conn net.Conn, data []byte, cmd *modbus.RTUCommand, commandRaw *tpconfig.CommandRaw, subDevice *api.SubDevice, gateway *api.DeviceConfigResponseData) error {
 	// 清空缓冲区
 	clearBuffer(conn)
 
@@ -214,11 +215,11 @@ func sendRTUDataAndProcessResponse(conn net.Conn, data []byte, cmd *modbus.RTUCo
 		return err
 	}
 
-	return processResponseData(dataMap, subDevice)
+	return mqtt.PublishCollectedTelemetry(gateway, subDevice, dataMap)
 }
 
 // sendTCPDataAndProcessResponse 发送TCP数据并处理响应
-func sendTCPDataAndProcessResponse(conn net.Conn, data []byte, cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, deviceID string, subDevice *api.SubDevice) error {
+func sendTCPDataAndProcessResponse(conn net.Conn, data []byte, cmd *modbus.TCPCommand, commandRaw *tpconfig.CommandRaw, regPkg string, subDevice *api.SubDevice, gateway *api.DeviceConfigResponseData) error {
 	// 清空缓冲区
 	clearBuffer(conn)
 
@@ -238,7 +239,7 @@ func sendTCPDataAndProcessResponse(conn net.Conn, data []byte, cmd *modbus.TCPCo
 		return err
 	}
 
-	buf, err := ReadModbusTCPResponse(conn, deviceID)
+	buf, err := ReadModbusTCPResponse(conn, regPkg)
 	if err != nil {
 		return err
 	}
@@ -267,7 +268,7 @@ func sendTCPDataAndProcessResponse(conn net.Conn, data []byte, cmd *modbus.TCPCo
 		return err
 	}
 
-	return processResponseData(dataMap, subDevice)
+	return mqtt.PublishCollectedTelemetry(gateway, subDevice, dataMap)
 }
 
 // clearBuffer 清空连接缓冲区
@@ -348,26 +349,4 @@ func flushTimeoutResponse(conn net.Conn) {
 			return
 		}
 	}
-}
-
-// processResponseData 处理响应数据并发布到MQTT
-func processResponseData(dataMap map[string]interface{}, tpSubDevice *api.SubDevice) error {
-	payloadMap := map[string]interface{}{
-		"device_id": tpSubDevice.DeviceID,
-		"values":    dataMap,
-	}
-
-	values, err := json.Marshal(payloadMap["values"])
-	if err != nil {
-		return err
-	}
-	logrus.Info("values:", string(values))
-
-	payloadMap["values"] = values
-	payload, err := json.Marshal(payloadMap)
-	if err != nil {
-		return err
-	}
-
-	return MQTT.Publish(string(payload))
 }

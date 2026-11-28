@@ -49,10 +49,7 @@ func InitClient() {
 	MqttClient = client
 }
 
-// 发布设备消息{"token":device_token,"values":{sub_device_addr1:{key:value...},sub_device_add2r:{key:value...}}}
-func Publish(payload string) error {
-	// 主题
-	topic := viper.GetString("mqtt.topic_to_publish_sub")
+func publish(topic, payload string) error {
 	qos := viper.GetUint("mqtt.qos")
 	// 发布消息
 	if err := MqttClient.Publish(topic, string(payload), uint8(qos)); err != nil {
@@ -247,23 +244,5 @@ func handleDeviceConnection(deviceID string, sendData []byte, voucher string, pr
 
 // 根据key、value组装发送
 func PublishRsponse(key string, value interface{}, subDeviceID string) error {
-	dataMap := make(map[string]interface{})
-	dataMap[key] = value
-	payloadMap := map[string]interface{}{
-		"device_id": subDeviceID,
-		"values":    dataMap,
-	}
-	var values []byte
-	// 将payloadMap.values 转为json字符串
-	values, err := json.Marshal(payloadMap["values"])
-	if err != nil {
-		return err
-	}
-	logrus.Info("values:", string(values))
-	payloadMap["values"] = values
-	payload, err := json.Marshal(payloadMap)
-	if err != nil {
-		return err
-	}
-	return Publish(string(payload))
+	return PublishDeviceTelemetry(subDeviceID, map[string]interface{}{key: value})
 }
